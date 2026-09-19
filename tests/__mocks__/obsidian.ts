@@ -285,14 +285,15 @@ export class FuzzySuggestModal<T> extends Modal {
 export interface FuzzyMatch<T> { item: T; match: SearchResult }
 
 export class Menu {
-	items: { title: string | DocumentFragment; callback?: () => void }[] = [];
+	items: { title: string | DocumentFragment; callback?: () => void; submenu?: Menu }[] = [];
+	separatorIndices: number[] = [];
 	addItem(cb: (item: MenuItem) => void): this {
 		const item = new MenuItem();
 		cb(item);
-		this.items.push({ title: item.titleValue, callback: item.callbackValue });
+		this.items.push({ title: item.titleValue, callback: item.callbackValue, submenu: item.submenuValue });
 		return this;
 	}
-	addSeparator(): this { return this; }
+	addSeparator(): this { this.separatorIndices.push(this.items.length); return this; }
 	showAtMouseEvent(): void { /* no-op */ }
 	showAtPosition(): void { /* no-op */ }
 }
@@ -300,11 +301,13 @@ export class Menu {
 export class MenuItem {
 	titleValue: string | DocumentFragment = "";
 	callbackValue?: () => void;
+	submenuValue?: Menu;
 	setTitle(title: string | DocumentFragment): this { this.titleValue = title; return this; }
 	setIcon(): this { return this; }
 	setChecked(): this { return this; }
 	setDisabled(): this { return this; }
 	onClick(cb: () => void): this { this.callbackValue = cb; return this; }
+	setSubmenu(): Menu { this.submenuValue = new Menu(); return this.submenuValue; }
 }
 
 export class FileSystemAdapter {

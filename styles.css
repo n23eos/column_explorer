@@ -1140,3 +1140,74 @@
 	padding: calc(6px * var(--ce-mobile-scale, 1)) calc(12px * var(--ce-mobile-scale, 1));
 	font-size: calc(var(--font-ui-small) * var(--ce-mobile-scale, 1));
 }
+
+/* Compact controls share the host theme and keyboard focus treatment. */
+.column-explorer-toolbar {
+	align-items: center;
+}
+
+.column-explorer-search-wrap {
+	display: flex;
+	align-items: center;
+	flex: 1;
+	min-width: 0;
+	gap: 2px;
+}
+
+.column-explorer-search-wrap .column-explorer-search {
+	width: 100%;
+	min-width: 0;
+}
+
+.column-explorer-clear-filter[hidden] {
+	display: none;
+}
+
+.column-explorer-search-wrap.is-inactive {
+	opacity: 0.5;
+}
+
+:where(.column-explorer-container) button.clickable-icon,
+.column-explorer-container button.column-explorer-crumb,
+.column-explorer-container button.column-explorer-cal-month {
+	box-shadow: none;
+	background: transparent;
+	border: 0;
+	color: inherit;
+	font: inherit;
+	height: auto;
+}
+
+.column-explorer-container button.clickable-icon {
+	flex-shrink: 0;
+}
+
+.column-explorer-container button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.column-explorer-container button.column-explorer-crumb {
+	padding: 1px 4px;
+}
+
+.column-explorer-view-toggle {
+	opacity: 0.55;
+}
+
+.column-explorer-list.is-grid > .column-explorer-section-label,
+.column-explorer-list.is-grid > .column-explorer-section-divider {
+	grid-column: 1 / -1;
+}
+
+button.column-explorer-cal-cell {
+	box-shadow: none;
+	border: 0;
+	font: inherit;
+	height: auto;
+	background: transparent;
+}
+
+.column-explorer-search::-webkit-search-cancel-button {
+	-webkit-appearance: none;
+}

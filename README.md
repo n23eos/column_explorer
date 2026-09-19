@@ -43,14 +43,14 @@ If your vault is flat and small, the default explorer is fine. If you keep a dee
 
 1. **Open it** — click the columns icon in the left ribbon, or run the command *Open column explorer*. The view opens in the left sidebar.
 2. **Click a folder** — its contents appear in a new column to the right. Keep clicking to drill down; the breadcrumb bar above shows the full path and jumps back to any level.
-3. **Make it yours** — right-click a folder for colors, icons and *Pin to top*; click the star in the breadcrumb bar to add the current folder to Favorites; drag the right edge of a column to resize it.
+3. **Make it yours** - right-click a folder for colors, icons and *Pin in this folder*; click the star in the breadcrumb bar to add the current folder to Favorites; drag the right edge of a column to resize it.
 
-Worth knowing early: `Space` previews the selected file, right-clicking empty space creates a note or folder there, and **Settings → Column Explorer** has a *Special items* section that turns on the Recents, Bookmarks, Calendar and Disk usage rows.
+Worth knowing early: `Space` previews the selected file, right-clicking empty space creates a note or folder there, and **Settings → Column Explorer** has a *Special items* section that turns on the Recents, Quick access, Calendar and Disk usage rows.
 
 ## Highlights
 
 - **Miller columns** — Finder-style navigation, each folder opens a new column
-- **Recents, Bookmarks & Calendar** — virtual rows in the first column: recently opened files (up to 50), your core-plugin bookmarks, and a month calendar with per-day created-note badges — click a day to list the notes created then
+- **Recents, Quick access & Calendar** - virtual rows in the first column: recently opened files (up to 50), your core-plugin bookmarks, and a month calendar with per-day created-note badges - click a day to list the notes created then
 - **Disk usage** — a sunburst chart of the vault by size, word count or file count, with animated zoom into any folder
 - **Import from the OS** — drop files from Finder/Explorer into any column to copy them into the vault
 - **Folder colors, icons and pins** — eight theme-aware colors, any lucide icon, pin items to the top
@@ -70,8 +70,8 @@ Worth knowing early: `Space` previews the selected file, right-clicking empty sp
 - **Folder notes** — optionally open the note named like its folder when selecting the folder
 - **Keyboard navigation** — `↑`/`↓` select, `→`/`←` drill in/out, `Home`/`End`/`PageUp`/`PageDown`, type-ahead (start typing to jump, like in Finder), `Enter` open, `Space` Quick Look, `F2` rename, `Delete` trash, `Ctrl`/`Cmd`+`A` select all in the column, `Ctrl`/`Cmd`+`D` duplicate, `Ctrl`/`Cmd`+`C`/`X`/`V` copy, cut and paste
 - **Back & forward** — navigation history buttons in the breadcrumbs bar
-- **Favorites** — star any file or folder (context menu, or the star button in the breadcrumbs bar); they sit atop the Bookmarks column
-- **Filter** — live search box that filters files in every column
+- **Favorites** - star any file or folder (context menu, or the star button in the breadcrumbs bar); they sit atop the Quick access column
+- **Filter** - filters names in open columns, including Recents, Quick access and calendar-day files. It is not a vault-wide search; clear it with the cross button or Escape.
 - **Auto-reveal** — optionally follow the active editor tab
 - **Persistent state** — selected path survives app restarts
 
@@ -82,7 +82,7 @@ The first column can host four virtual rows, each toggleable and positionable in
 ![Column Explorer — calendar column with per-day created-note counts](docs/screenshot-2.jpg)
 
 - **Recents** — the last files you opened, up to 50
-- **Bookmarks** — your core Bookmarks plugin items, with Favorites pinned above them
+- **Quick access** - Favorites at the top and your core Bookmarks items below, with duplicates removed. It also works with the core Bookmarks plugin disabled.
 - **Calendar** — a month grid with a badge per day showing how many notes were created then; click a day to list them
 - **Disk usage** — an interactive sunburst chart of the whole vault, in the spirit of classic disk-usage analyzers. Switch between **size** (bytes on disk), **words** and **files**; click a folder to fly inside it, `Esc` or the centre circle to go back out, and click a file to open it. Sectors too thin to see merge into one muted "small items" arc, hovering highlights a folder with all of its descendants, and the chart rescans itself when the vault changes. Excluded folders and the number of visible rings are configurable.
 
@@ -93,7 +93,7 @@ The first column can host four virtual rows, each toggleable and positionable in
 - **List or icon view per column** — toggle in the column header, remembered per folder
 - **Image thumbnails** — the icon view shows real thumbnails for image files
 - **Folder colors & icons** — right-click a folder: eight theme-aware color presets and any lucide icon
-- **Pinned items** — right-click → *Pin to top*; drag one pin onto another to reorder
+- **Pinned items** - right-click → *Pin in this folder*; drag one pin onto another to reorder
 - **File preview column** — image, audio, video and PDF previews, note content, size, dates
 - **Unread markers** — a small *New* badge on files you have never opened, and a dot on files
   edited since you last opened them (by an agent, a bot, sync or an external editor). Opening a
@@ -109,9 +109,9 @@ The first column can host four virtual rows, each toggleable and positionable in
 - **Copy, cut & paste** — `Ctrl`/`Cmd`+`C`/`X`/`V` or the context menu; paste lands in the current folder (or the right-clicked one), name clashes get a numeric suffix, cut items are dimmed until pasted
 - **Drag & drop** — move files/folders between columns, straight onto a folder row or onto a breadcrumb segment; drag a file into an editor to insert a link
 - **Full Obsidian context menu** — core & community plugin items (bookmarks, "Reveal in Finder", copy link, …) are injected via the `file-menu` event
-- **Copy links & paths** — vault path, absolute system path, wikilink, Markdown link or `obsidian://` URL, from the context menu
+- **Copy links & paths** - vault path, absolute system path, wikilink, Markdown link or `obsidian://` URL, grouped under *Copy as* in the context menu.
 - **Excluded files** — hide files and folders by comma-separated patterns. `*.tmp` matches by file name at any depth (`*` is any run of characters, `?` exactly one); `.trash` matches any path containing it; a trailing slash (`archive/`) is a path prefix **from the vault root**, so nested folders need their full path (`Notes/archive/`)
-- **Sort options** — global default plus per-folder overrides (right-click a column header): name, modified, created or size, both directions
+- **Sort options** - global default plus per-folder overrides (right-click a column header): name, modified, created or size, both directions. Sorting by modification time or size updates when a file changes.
 
 ![Column Explorer — special items settings](docs/screenshot-4.jpg)
 
@@ -179,3 +179,15 @@ See the [changelog](CHANGELOG.md) for what changed in each release.
 ## License
 
 [MIT](LICENSE)
+
+### Preserve manual widths
+
+The sidebar keeps its manual width by default. Enable **Automatically fit panel width** in settings or the desktop **More** menu to fit the open columns. Existing installations keep the effective behavior of their previous width settings. Individual column widths remain draggable and saved. **More** also lets you limit the number of visible columns independently.
+
+### Compact desktop controls
+
+The desktop toolbar contains **Create**, **Sort** and **More**, followed by the filter. Create offers a note, folder or canvas. More contains reveal-active-file, collapse-to-root, the column-count limit and automatic panel sizing. Navigation and Favorites remain next to the path.
+
+Calendar and Disk usage appear under **Tools** in the root column. Their existing visibility settings are preserved. Dependent options in settings appear only when the corresponding feature is enabled.
+
+Large folders load chunks around the selected file, including after Home or End. Moving between files keeps the existing folder columns alive. A hidden Disk usage chart postpones refreshes until it is reopened; word counting starts only when you choose **Words**.

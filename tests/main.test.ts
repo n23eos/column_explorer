@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { TFile } from "obsidian";
 import ColumnExplorerPlugin from "../src/main";
-import { ColumnExplorerSettings } from "../src/settings";
+import { ColumnExplorerSettings, setPanelAutoResize } from "../src/settings";
 import { makeVault } from "./setup/vault";
 import { makeApp } from "./setup/app";
 
@@ -402,5 +402,19 @@ describe("active-leaf-change", () => {
 		app.workspace.trigger("active-leaf-change");
 
 		expect(calls).toEqual(["highlight"]);
+	});
+});
+
+describe("column width lock persistence", () => {
+	test("enables the lock on upgrade and restores an explicitly disabled choice", async () => {
+		const { plugin } = await loadPlugin({ autoPanelResize: true, columnWidths: { "/": 310 } });
+		expect(plugin.settings.lockColumnWidths).toBe(true);
+		expect(plugin.settings.columnWidths).toEqual({ "/": 310 });
+		setPanelAutoResize(plugin.settings, true);
+		await plugin.saveSettings();
+		const saved = (plugin as unknown as { savedData: ColumnExplorerSettings }).savedData;
+		const { plugin: reopened } = await loadPlugin(saved);
+		expect(reopened.settings.lockColumnWidths).toBe(false);
+		expect(reopened.settings.columnWidths).toEqual({ "/": 310 });
 	});
 });

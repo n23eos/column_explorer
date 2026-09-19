@@ -33,22 +33,26 @@ export function renderColumn(view: ColumnExplorerView, container: HTMLElement, f
 	});
 
 	const viewMode = view.plugin.settings.columnViewModes[folder.path] ?? "list";
-	const toggle = header.createDiv({
+	const toggle = header.createEl("button", {
 		cls: "clickable-icon column-explorer-view-toggle",
 		attr: {
 			"aria-label": viewMode === "list" ? t("viewAsGrid") : t("viewAsList"),
-			role: "button",
+			type: "button",
 			"aria-pressed": String(viewMode === "grid"),
 		},
 	});
 	setIcon(toggle, viewMode === "list" ? "layout-grid" : "list");
 	toggle.addEventListener("click", () => {
+		const restoreFocus = toggle.ownerDocument.activeElement === toggle;
 		view.plugin.settings.columnViewModes = {
 			...view.plugin.settings.columnViewModes,
 			[folder.path]: viewMode === "list" ? "grid" : "list",
 		};
 		void view.plugin.saveSettings();
 		view.render();
+		if (restoreFocus) container.querySelector<HTMLElement>(
+			`.column-explorer-column[data-folder-path="${CSS.escape(folder.path)}"] .column-explorer-view-toggle`
+		)?.focus();
 	});
 
 	const list = col.createDiv({ cls: "column-explorer-list", attr: { role: "listbox" } });
@@ -147,33 +151,47 @@ export function renderColumnList(view: ColumnExplorerView, list: HTMLElement, fo
 	}
 
 	const isGrid = (view.plugin.settings.columnViewModes[folder.path] ?? "list") === "grid";
-	// Инкрементальный рендер: сразу — первая порция (и как минимум до
-	// выделенного элемента), остальное догружается сентинелом при скролле
+	// Start near the selected item without building every preceding row.
 	const selectedIdx = children.findIndex(c => c.path === view.selection[depth]);
-	let rendered = Math.min(children.length, Math.max(RENDER_CHUNK, selectedIdx + 1));
-	const frag = createFragment();
-	for (let i = 0; i < rendered; i++) frag.appendChild(buildItem(view, children[i], depth, isGrid));
-	list.appendChild(frag);
-	if (rendered >= children.length) { appendSpecialsBottom(); return; }
-
-	// Спецпункты «снизу» встают после сентинела: догружаемые порции
-	// вставляются перед ним, так что спецпункты остаются в самом конце
-	const sentinel = list.createDiv({ cls: "column-explorer-load-more" });
+	let start = selectedIdx < 0 ? 0 : Math.floor(selectedIdx / RENDER_CHUNK) * RENDER_CHUNK;
+	let end = Math.min(children.length, start + RENDER_CHUNK);
+	const before = list.createDiv({ cls: "column-explorer-load-more" });
+	const appendRange = (from: number, to: number, anchor: Node | null) => {
+		const fragment = createFragment();
+		for (let i = from; i < to; i++) fragment.appendChild(buildItem(view, children[i], depth, isGrid));
+		list.insertBefore(fragment, anchor);
+	};
+	appendRange(start, end, null);
+	const after = list.createDiv({ cls: "column-explorer-load-more" });
 	appendSpecialsBottom();
+	if (start === 0) before.remove();
+	if (end === children.length) after.remove();
+	if (start === 0 && end === children.length) return;
+
 	const observer = new IntersectionObserver((entries) => {
-		if (!entries.some(entry => entry.isIntersecting)) return;
-		const next = Math.min(children.length, rendered + RENDER_CHUNK);
-		const batch = createFragment();
-		for (let i = rendered; i < next; i++) batch.appendChild(buildItem(view, children[i], depth, isGrid));
-		rendered = next;
-		list.insertBefore(batch, sentinel);
-		if (rendered >= children.length) {
+		for (const entry of entries) {
+			if (!entry.isIntersecting) continue;
+			if (entry.target === before && start > 0) {
+				const oldHeight = list.scrollHeight;
+				const nextStart = Math.max(0, start - RENDER_CHUNK);
+				appendRange(nextStart, start, before.nextSibling);
+				start = nextStart;
+				list.scrollTop += list.scrollHeight - oldHeight;
+				if (start === 0) { observer.unobserve(before); before.remove(); }
+			} else if (entry.target === after && end < children.length) {
+				const nextEnd = Math.min(children.length, end + RENDER_CHUNK);
+				appendRange(end, nextEnd, after);
+				end = nextEnd;
+				if (end === children.length) { observer.unobserve(after); after.remove(); }
+			}
+		}
+		if (start === 0 && end === children.length) {
 			observer.disconnect();
 			listObservers.delete(list);
-			sentinel.remove();
 		}
 	}, { root: list });
-	observer.observe(sentinel);
+	if (start > 0) observer.observe(before);
+	if (end < children.length) observer.observe(after);
 	listObservers.set(list, observer);
 }
 
@@ -291,8 +309,12 @@ function buildSpecialItems(view: ColumnExplorerView): HTMLElement[] {
 	const items: HTMLElement[] = [];
 	if (view.specialKind(RECENTS_PATH)) items.push(buildSpecialItem(view, RECENTS_PATH, "history", t("recents")));
 	if (view.specialKind(BOOKMARKS_PATH)) items.push(buildSpecialItem(view, BOOKMARKS_PATH, "bookmark", t("bookmarks")));
+	if (view.specialKind(CALENDAR_PATH) || view.specialKind(STORAGE_PATH)) {
+		items.push(createDiv({ cls: "column-explorer-section-label", text: t("tools") }));
+	}
 	if (view.specialKind(CALENDAR_PATH)) items.push(buildSpecialItem(view, CALENDAR_PATH, "calendar-days", t("calendar")));
 	if (view.specialKind(STORAGE_PATH)) items.push(buildSpecialItem(view, STORAGE_PATH, "pie-chart", t("diskUsage")));
+	if (items.length > 0) items.push(createDiv({ cls: "column-explorer-section-divider" }));
 	return items;
 }
 
@@ -346,7 +368,7 @@ export function renderFileListColumn(
 	}
 
 	if (favorites.length === 0 && files.length === 0) {
-		list.createDiv({ cls: "column-explorer-empty", text: t("empty") });
+		list.createDiv({ cls: "column-explorer-empty", text: view.hasFilter() ? t("noResults") : t("empty") });
 	} else {
 		for (const f of files) list.appendChild(buildItem(view, f, depth));
 	}
@@ -355,6 +377,8 @@ export function renderFileListColumn(
 		const hit = itemFromEvent(e);
 		const f = hit ? view.app.vault.getAbstractFileByPath(hit.path) : null;
 		// Папка-закладка — прыжок к ней в обычных колонках
+		if (f && (e.ctrlKey || e.metaKey)) { view.toggleMulti(f, depth); return; }
+		if (f && e.shiftKey) { view.rangeMulti(f, depth, [...favorites, ...files]); return; }
 		if (f instanceof TFolder) { view.clearMulti(); view.revealFile(f); return; }
 		if (f instanceof TFile) { view.clearMulti(); view.selectItem(f, depth, e); }
 	});
@@ -405,18 +429,23 @@ export function renderCalendarColumn(view: ColumnExplorerView, container: HTMLEl
 
 	const { year, month } = view.currentCalendarMonth();
 	const nav = col.createDiv({ cls: "column-explorer-cal-nav" });
-	const prev = nav.createDiv({ cls: "clickable-icon", attr: { role: "button" } });
+	const prev = nav.createEl("button", { cls: "clickable-icon", attr: { type: "button", "aria-label": t("navBack") } });
 	setIcon(prev, "chevron-left");
-	prev.addEventListener("click", () => view.navigateCalendarMonth(-1));
-	const monthLabel = nav.createDiv({
+	const navigate = (delta: number, index: number) => {
+		const restoreFocus = nav.contains(nav.ownerDocument.activeElement);
+		view.navigateCalendarMonth(delta);
+		if (restoreFocus) container.querySelectorAll<HTMLElement>(".column-explorer-cal-nav button")[index]?.focus();
+	};
+	prev.addEventListener("click", () => navigate(-1, 0));
+	const monthLabel = nav.createEl("button", {
 		cls: "column-explorer-cal-month",
 		text: new Date(year, month, 1).toLocaleDateString(getLanguage(), { month: "long", year: "numeric" }),
-		attr: { "aria-label": t("today"), role: "button" },
+		attr: { "aria-label": t("today"), type: "button" },
 	});
-	monthLabel.addEventListener("click", () => view.navigateCalendarMonth(0));
-	const next = nav.createDiv({ cls: "clickable-icon", attr: { role: "button" } });
+	monthLabel.addEventListener("click", () => navigate(0, 1));
+	const next = nav.createEl("button", { cls: "clickable-icon", attr: { type: "button", "aria-label": t("navForward") } });
 	setIcon(next, "chevron-right");
-	next.addEventListener("click", () => view.navigateCalendarMonth(1));
+	next.addEventListener("click", () => navigate(1, 2));
 
 	const counts = view.calendarCounts();
 	const todayKey = dayKey(Date.now());
@@ -429,7 +458,7 @@ export function renderCalendarColumn(view: ColumnExplorerView, container: HTMLEl
 	}
 	for (const week of monthGrid(year, month)) {
 		for (const day of week) {
-			const cell = grid.createDiv({ cls: "column-explorer-cal-cell" });
+			const cell = grid.createEl(day ? "button" : "div", { cls: "column-explorer-cal-cell", attr: day ? { type: "button", "aria-label": day } : {} });
 			if (!day) continue;
 			cell.addClass("is-day");
 			cell.dataset.day = day;
@@ -442,7 +471,15 @@ export function renderCalendarColumn(view: ColumnExplorerView, container: HTMLEl
 	}
 	grid.addEventListener("click", (e) => {
 		const cell = (e.target as HTMLElement | null)?.closest<HTMLElement>(".column-explorer-cal-cell.is-day");
-		if (cell?.dataset.day) view.selectDay(cell.dataset.day);
+		if (cell?.dataset.day) {
+			const restoreFocus = grid.contains(grid.ownerDocument.activeElement);
+			view.selectDay(cell.dataset.day);
+			if (restoreFocus) {
+				const selected = container.querySelector<HTMLElement>(".column-explorer-cal-cell.is-selected");
+				if (selected) selected.focus();
+				else view.focusColumns();
+			}
+		}
 	});
 	addResizeHandle(view, col, CALENDAR_PATH);
 	return col;

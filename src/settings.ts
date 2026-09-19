@@ -37,6 +37,8 @@ export interface ColumnExplorerSettings {
 	columnWidths: Record<string, number>;
 	/** Auto-resize the sidebar panel to fit all open columns. */
 	autoPanelResize: boolean;
+	/** Deprecated persisted inverse of autoPanelResize. Kept for downgrade compatibility. */
+	lockColumnWidths: boolean;
 	sortMode: SortMode;
 	excludePatterns: string;
 	folderColors: Record<string, FolderColorKey>;
@@ -56,7 +58,7 @@ export interface ColumnExplorerSettings {
 	recentFiles: string[];
 	/** Show the virtual "Recents" row in the root column. */
 	showRecents: boolean;
-	/** Show the virtual "Bookmarks" row (requires the core Bookmarks plugin). */
+	/** Include core Bookmarks items in the virtual Quick access row. */
 	showBookmarks: boolean;
 	/** Show the virtual "Calendar" row. */
 	showCalendar: boolean;
@@ -70,9 +72,9 @@ export interface ColumnExplorerSettings {
 	specialItemsPosition: "top" | "bottom";
 	/** Where the open command and ribbon icon put the view. */
 	openLocation: "sidebar" | "tab";
-	/** Own favorite paths (files and folders), shown atop the Bookmarks column. */
+	/** Own favorite paths (files and folders), shown atop Quick access. */
 	favorites: string[];
-	/** Show the favorites section in the Bookmarks column. */
+	/** Show the favorites section in Quick access. */
 	showFavorites: boolean;
 	/** Mobile UI scale in percent (90–150): rows, controls, text and spacing. */
 	mobileUiScale: number;
@@ -99,7 +101,8 @@ export const DEFAULT_SETTINGS: ColumnExplorerSettings = {
 	autoReveal: false,
 	columnWidth: DEFAULT_COLUMN_WIDTH,
 	columnWidths: {},
-	autoPanelResize: true,
+	autoPanelResize: false,
+	lockColumnWidths: true,
 	sortMode: "name-asc",
 	excludePatterns: "",
 	folderColors: {},
@@ -128,6 +131,15 @@ export const DEFAULT_SETTINGS: ColumnExplorerSettings = {
 	unreadBaseline: 0,
 };
 
+/** Keep the canonical panel mode and its persisted legacy inverse in sync. */
+export function setPanelAutoResize(
+	settings: Pick<ColumnExplorerSettings, "autoPanelResize" | "lockColumnWidths">,
+	enabled: boolean,
+): void {
+	settings.autoPanelResize = enabled;
+	settings.lockColumnWidths = !enabled;
+}
+
 export class ColumnExplorerSettingTab extends PluginSettingTab {
 	/** Синхронизация мобильных слайдеров и подписей после сброса. */
 	private refreshMobileSliders?: () => void;
@@ -149,7 +161,11 @@ export class ColumnExplorerSettingTab extends PluginSettingTab {
 					{ name: t("setFoldersFirst"), desc: t("setFoldersFirstDesc"), control: { type: "toggle", key: "foldersFirst" } },
 					{ name: t("setShowExt"), desc: t("setShowExtDesc"), control: { type: "toggle", key: "showExtensions" } },
 					{ name: t("setPreview"), desc: t("setPreviewDesc"), control: { type: "toggle", key: "showPreview" } },
-					{ name: t("setMdPreview"), desc: t("setMdPreviewDesc"), control: { type: "toggle", key: "showMarkdownPreview" } },
+						{
+							name: t("setMdPreview"), desc: t("setMdPreviewDesc"),
+							visible: () => this.plugin.settings.showPreview,
+							control: { type: "toggle", key: "showMarkdownPreview" },
+						},
 					{ name: t("setShowUnread"), desc: t("setShowUnreadDesc"), control: { type: "toggle", key: "showUnreadMarkers" } },
 				],
 			},
@@ -196,16 +212,26 @@ export class ColumnExplorerSettingTab extends PluginSettingTab {
 					{ name: t("setShowRecents"), desc: t("setShowRecentsDesc"), control: { type: "toggle", key: "showRecents" } },
 					{
 						name: t("setRecentCount"), desc: t("setRecentCountDesc"),
+						visible: () => this.plugin.settings.showRecents,
 						control: { type: "number", key: "recentFilesCount", min: MIN_RECENT_FILES, max: MAX_RECENT_FILES, step: 1 },
 					},
-					{ name: t("clearRecents"), desc: t("clearRecentsDesc"), action: () => void this.clearRecents() },
+					{
+						name: t("clearRecents"), desc: t("clearRecentsDesc"),
+						visible: () => this.plugin.settings.showRecents,
+						action: () => void this.clearRecents(),
+					},
 					{ name: t("setShowFavorites"), desc: t("setShowFavoritesDesc"), control: { type: "toggle", key: "showFavorites" } },
 					{ name: t("setShowBookmarks"), desc: t("setShowBookmarksDesc"), control: { type: "toggle", key: "showBookmarks" } },
 					{ name: t("setShowCalendar"), desc: t("setShowCalendarDesc"), control: { type: "toggle", key: "showCalendar" } },
 					{ name: t("setShowStorage"), desc: t("setShowStorageDesc"), control: { type: "toggle", key: "showStorage" } },
-					{ name: t("setStorageExclude"), desc: t("setStorageExcludeDesc"), control: { type: "text", key: "storageExcluded" } },
+					{
+						name: t("setStorageExclude"), desc: t("setStorageExcludeDesc"),
+						visible: () => this.plugin.settings.showStorage,
+						control: { type: "text", key: "storageExcluded" },
+					},
 					{
 						name: t("setStorageRings"), desc: t("setStorageRingsDesc"),
+						visible: () => this.plugin.settings.showStorage,
 						control: { type: "slider", key: "storageRingCount", min: MIN_STORAGE_RINGS, max: MAX_STORAGE_RINGS, step: 1 },
 					},
 				],
@@ -266,9 +292,18 @@ export class ColumnExplorerSettingTab extends PluginSettingTab {
 		if (key === "recentFilesCount" && typeof value === "number") {
 			value = Math.max(MIN_RECENT_FILES, Math.min(MAX_RECENT_FILES, Math.round(value)));
 		}
-		(this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
+		if (key === "autoPanelResize" && typeof value === "boolean") {
+			setPanelAutoResize(this.plugin.settings, value);
+		} else {
+			(this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
+		}
 		await this.plugin.saveSettings();
 		this.plugin.getView()?.render();
+		if (key === "showPreview" || key === "showRecents" || key === "showStorage") {
+			// update() exists in the declarative settings API (Obsidian 1.13+).
+			// The optional call keeps the legacy 1.8.7 runtime compatible.
+			(this as unknown as { update?: () => void }).update?.();
+		}
 	}
 
 	/** Закрытие вкладки не должно ждать дебаунса — дописываем сразу. */
@@ -277,12 +312,20 @@ export class ColumnExplorerSettingTab extends PluginSettingTab {
 	}
 
 	display() {
+		this.renderLegacySettings();
+	}
+
+	private renderLegacySettings() {
 		const { containerEl } = this;
 		containerEl.empty();
 		const s = this.plugin.settings;
 		const save = async () => {
 			await this.plugin.saveSettings();
 			this.plugin.getView()?.render();
+		};
+		const saveAndRedisplay = async () => {
+			await save();
+			this.renderLegacySettings();
 		};
 		// Текстовые поля шлют onChange на каждую букву: запись data.json плюс
 		// полный рендер всех колонок на нажатие клавиши заметно лагают
@@ -298,10 +341,12 @@ export class ColumnExplorerSettingTab extends PluginSettingTab {
 			.addToggle(tg => tg.setValue(s.showExtensions).onChange(async (v) => { s.showExtensions = v; await save(); }));
 
 		new Setting(containerEl).setName(t("setPreview")).setDesc(t("setPreviewDesc"))
-			.addToggle(tg => tg.setValue(s.showPreview).onChange(async (v) => { s.showPreview = v; await save(); }));
+			.addToggle(tg => tg.setValue(s.showPreview).onChange(async (v) => { s.showPreview = v; await saveAndRedisplay(); }));
 
-		new Setting(containerEl).setName(t("setMdPreview")).setDesc(t("setMdPreviewDesc"))
-			.addToggle(tg => tg.setValue(s.showMarkdownPreview).onChange(async (v) => { s.showMarkdownPreview = v; await save(); }));
+		if (s.showPreview) {
+			new Setting(containerEl).setName(t("setMdPreview")).setDesc(t("setMdPreviewDesc"))
+				.addToggle(tg => tg.setValue(s.showMarkdownPreview).onChange(async (v) => { s.showMarkdownPreview = v; await save(); }));
+		}
 
 		new Setting(containerEl).setName(t("setShowUnread")).setDesc(t("setShowUnreadDesc"))
 			.addToggle(tg => tg.setValue(s.showUnreadMarkers).onChange(async (v) => { s.showUnreadMarkers = v; await save(); }));
@@ -344,7 +389,7 @@ export class ColumnExplorerSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName(t("headColumns")).setHeading();
 
 		new Setting(containerEl).setName(t("setAutoPanel")).setDesc(t("setAutoPanelDesc"))
-			.addToggle(tg => tg.setValue(s.autoPanelResize).onChange(async (v) => { s.autoPanelResize = v; await save(); }));
+			.addToggle(tg => tg.setValue(s.autoPanelResize).onChange(async (v) => { setPanelAutoResize(s, v); await save(); }));
 
 		new Setting(containerEl).setName(t("setColWidth")).setDesc(t("setColWidthDesc"))
 			.addSlider(sl => sl.setLimits(MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH, 10)
@@ -364,22 +409,24 @@ export class ColumnExplorerSettingTab extends PluginSettingTab {
 				.onChange(async (v) => { s.specialItemsPosition = v === "bottom" ? "bottom" : "top"; await save(); }));
 
 		new Setting(containerEl).setName(t("setShowRecents")).setDesc(t("setShowRecentsDesc"))
-			.addToggle(tg => tg.setValue(s.showRecents).onChange(async (v) => { s.showRecents = v; await save(); }));
+			.addToggle(tg => tg.setValue(s.showRecents).onChange(async (v) => { s.showRecents = v; await saveAndRedisplay(); }));
 
-		new Setting(containerEl).setName(t("setRecentCount")).setDesc(t("setRecentCountDesc"))
-			.addText(txt => {
-				txt.inputEl.type = "number";
-				txt.setValue(String(s.recentFilesCount))
-					.onChange(async (v) => {
-						const n = Number(v);
-						if (!Number.isFinite(n)) return;
-						s.recentFilesCount = Math.max(MIN_RECENT_FILES, Math.min(MAX_RECENT_FILES, Math.round(n)));
-						await save();
-					});
-			});
+		if (s.showRecents) {
+			new Setting(containerEl).setName(t("setRecentCount")).setDesc(t("setRecentCountDesc"))
+				.addText(txt => {
+					txt.inputEl.type = "number";
+					txt.setValue(String(s.recentFilesCount))
+						.onChange(async (v) => {
+							const n = Number(v);
+							if (!Number.isFinite(n)) return;
+							s.recentFilesCount = Math.max(MIN_RECENT_FILES, Math.min(MAX_RECENT_FILES, Math.round(n)));
+							await save();
+						});
+				});
 
-		new Setting(containerEl).setName(t("clearRecents")).setDesc(t("clearRecentsDesc"))
-			.addButton(b => b.setButtonText(t("clear")).onClick(() => void this.clearRecents()));
+			new Setting(containerEl).setName(t("clearRecents")).setDesc(t("clearRecentsDesc"))
+				.addButton(b => b.setButtonText(t("clear")).onClick(() => void this.clearRecents()));
+		}
 
 		new Setting(containerEl).setName(t("setShowFavorites")).setDesc(t("setShowFavoritesDesc"))
 			.addToggle(tg => tg.setValue(s.showFavorites).onChange(async (v) => { s.showFavorites = v; await save(); }));
@@ -391,16 +438,18 @@ export class ColumnExplorerSettingTab extends PluginSettingTab {
 			.addToggle(tg => tg.setValue(s.showCalendar).onChange(async (v) => { s.showCalendar = v; await save(); }));
 
 		new Setting(containerEl).setName(t("setShowStorage")).setDesc(t("setShowStorageDesc"))
-			.addToggle(tg => tg.setValue(s.showStorage).onChange(async (v) => { s.showStorage = v; await save(); }));
+			.addToggle(tg => tg.setValue(s.showStorage).onChange(async (v) => { s.showStorage = v; await saveAndRedisplay(); }));
 
-		new Setting(containerEl).setName(t("setStorageExclude")).setDesc(t("setStorageExcludeDesc"))
-			.addText(txt => txt.setValue(s.storageExcluded)
-				.onChange((v) => { s.storageExcluded = v; saveTextInput(); }));
+		if (s.showStorage) {
+			new Setting(containerEl).setName(t("setStorageExclude")).setDesc(t("setStorageExcludeDesc"))
+				.addText(txt => txt.setValue(s.storageExcluded)
+					.onChange((v) => { s.storageExcluded = v; saveTextInput(); }));
 
-		new Setting(containerEl).setName(t("setStorageRings")).setDesc(t("setStorageRingsDesc"))
-			.addSlider(sl => sl.setLimits(MIN_STORAGE_RINGS, MAX_STORAGE_RINGS, 1)
-				.setValue(s.storageRingCount)
-				.onChange(async (v) => { s.storageRingCount = v; await save(); }));
+			new Setting(containerEl).setName(t("setStorageRings")).setDesc(t("setStorageRingsDesc"))
+				.addSlider(sl => sl.setLimits(MIN_STORAGE_RINGS, MAX_STORAGE_RINGS, 1)
+					.setValue(s.storageRingCount)
+					.onChange(async (v) => { s.storageRingCount = v; await save(); }));
+		}
 
 		new Setting(containerEl).setName(t("headMobile")).setHeading();
 

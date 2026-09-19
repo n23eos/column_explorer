@@ -144,15 +144,16 @@ describe("disk usage column", () => {
 	test("a failed scan does not kill later rescans", async () => {
 		const { view, app, vault } = await mountView(["notes/a.md", "c.md"]);
 		giveFilesSize(vault);
-		const workingList = app.vault.getMarkdownFiles;
-		app.vault.getMarkdownFiles = () => { throw new Error("scan boom"); };
-
+		const workingList = app.vault.getRoot;
 		view.selectSpecial(STORAGE_PATH);
+		await flushWords();
+		app.vault.getRoot = () => { throw new Error("scan boom"); };
+		view.contentEl.querySelector<HTMLButtonElement>(".column-explorer-du-icon-btn")?.click();
 		await flushWords();
 
 		// Считаем обращения к vault: рескан «прошёл», если файлы снова спросили
 		let listed = 0;
-		app.vault.getMarkdownFiles = () => { listed++; return workingList(); };
+		app.vault.getRoot = () => { listed++; return workingList(); };
 		view.contentEl.querySelector<HTMLButtonElement>(".column-explorer-du-icon-btn")?.click();
 		await flushWords();
 

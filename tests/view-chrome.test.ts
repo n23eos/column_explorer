@@ -4,6 +4,8 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { Platform, TFile } from "obsidian";
+import { Menu } from "./__mocks__/obsidian";
+import { t } from "../src/i18n";
 import { ColumnExplorerView } from "../src/view";
 import type ColumnExplorerPlugin from "../src/main";
 import { ColumnExplorerSettings } from "../src/settings";
@@ -36,6 +38,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	Platform.isMobile = false;
+	vi.restoreAllMocks();
 });
 
 describe("breadcrumbs", () => {
@@ -119,7 +122,7 @@ describe("locked columns", () => {
 describe("autoResizePanel", () => {
 	test("does nothing for a view in the main editor area", async () => {
 		const setSize = vi.fn();
-		const { view } = await mount(["a.md"], { autoPanelResize: true }, { getRoot: () => ({ setSize }) });
+		const { view } = await mount(["a.md"], { lockColumnWidths: false, autoPanelResize: true }, { getRoot: () => ({ setSize }) });
 
 		view.autoResizePanel();
 
@@ -131,7 +134,7 @@ describe("autoResizePanel", () => {
 		const app = makeApp(vault);
 		const split = { collapsed: false, setSize: vi.fn() };
 		Object.assign(app.workspace, { leftSplit: split });
-		const plugin = makePlugin(app, { autoPanelResize: true, showRecents: false, showBookmarks: false, showCalendar: false });
+		const plugin = makePlugin(app, { lockColumnWidths: false, autoPanelResize: true, showRecents: false, showBookmarks: false, showCalendar: false });
 		const view = new ColumnExplorerView({ getRoot: () => split } as never, plugin as unknown as ColumnExplorerPlugin);
 		(view as unknown as { app: unknown }).app = app;
 		document.body.appendChild(view.contentEl);
@@ -152,7 +155,7 @@ describe("autoResizePanel", () => {
 		const app = makeApp(vault);
 		const split = { collapsed: true, setSize: vi.fn() };
 		Object.assign(app.workspace, { leftSplit: split });
-		const plugin = makePlugin(app, { autoPanelResize: true });
+		const plugin = makePlugin(app, { lockColumnWidths: false, autoPanelResize: true });
 		const view = new ColumnExplorerView({ getRoot: () => split } as never, plugin as unknown as ColumnExplorerPlugin);
 		(view as unknown as { app: unknown }).app = app;
 		document.body.appendChild(view.contentEl);
@@ -243,12 +246,67 @@ describe("selection helpers", () => {
 		expect(view.currentFolder().path).toBe("/");
 	});
 
-	test("selectAllAt does nothing in a virtual column", async () => {
+	test("selectAllAt selects visible files in a virtual column", async () => {
 		const { view } = await mount(["a.md"], { showRecents: true, recentFiles: ["a.md"] });
 		view.selectSpecial(RECENTS_PATH);
 
 		view.selectAllAt(1);
 
-		expect(view.multiSel.size).toBe(0);
+		expect([...view.multiSel]).toEqual(["a.md"]);
+	});
+});
+
+describe("column width lock", () => {
+	test("preserves dragged width and sidebar size across file navigation by default", async () => {
+		const split = { setSize: vi.fn() };
+		const { view, app, vault, plugin } = await mount(["a.md", "b.md"], {}, { getRoot: () => split });
+		Object.assign(app.workspace, { leftSplit: split });
+		const col = view.contentEl.querySelector<HTMLElement>(".column-explorer-column")!;
+		Object.defineProperty(col, "offsetWidth", { value: 260 });
+		col.querySelector(".column-explorer-resize-handle")!.dispatchEvent(new MouseEvent("mousedown", { clientX: 260 }));
+		document.dispatchEvent(new MouseEvent("mousemove", { clientX: 300 }));
+		document.dispatchEvent(new MouseEvent("mouseup"));
+		expect(plugin.settings.columnWidths["/"]).toBe(300);
+		for (const path of ["a.md", "b.md"]) {
+			view.selectItem(vault.getAbstractFileByPath(path)!, 0, new MouseEvent("click"));
+			await new Promise<void>(resolve => window.requestAnimationFrame(() => resolve()));
+			view.autoResizePanel();
+			expect(view.contentEl.querySelector<HTMLElement>(".column-explorer-column")!.style.getPropertyValue("--ce-col-width")).toBe("300px");
+		}
+		expect(split.setSize).not.toHaveBeenCalled();
+		expect(plugin.settings.autoPanelResize).toBe(false);
+		expect(view.contentEl.querySelector('[data-action="lock-column-widths"]')).toBeNull();
+		await view.onClose();
+	});
+
+	test("More menu toggles automatic panel sizing and preserves manual widths", async () => {
+		const split = { setSize: vi.fn() };
+		const { view, app, plugin } = await mount(["a.md"], { columnWidths: { "/": 310 } }, { getRoot: () => split });
+		Object.assign(app.workspace, { rightSplit: split });
+		const save = vi.spyOn(plugin, "saveSettings");
+		let menu: Menu | undefined;
+		vi.spyOn(Menu.prototype, "showAtMouseEvent").mockImplementation(function (this: Menu) { menu = this; });
+		const toggle = () => {
+			view.contentEl.querySelector<HTMLButtonElement>('[data-action="more"]')!.click();
+			const item = menu?.items.find(item => item.title === t("panelAutoWidth"));
+			expect(item?.callback).toBeDefined();
+			item!.callback!();
+		};
+		view.contentEl.querySelectorAll(".column-explorer-column").forEach(col => {
+			Object.defineProperty(col, "offsetWidth", { value: 310 });
+		});
+		toggle();
+		expect(plugin.settings.autoPanelResize).toBe(true);
+		expect(plugin.settings.lockColumnWidths).toBe(false);
+		expect(save).toHaveBeenCalled();
+		expect(split.setSize).toHaveBeenCalled();
+		split.setSize.mockClear();
+		toggle();
+		view.autoResizePanel();
+		expect(plugin.settings.autoPanelResize).toBe(false);
+		expect(plugin.settings.lockColumnWidths).toBe(true);
+		expect(plugin.settings.columnWidths).toEqual({ "/": 310 });
+		expect(split.setSize).not.toHaveBeenCalled();
+		await view.onClose();
 	});
 });

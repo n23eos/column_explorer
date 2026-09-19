@@ -36,6 +36,20 @@ function colorMenuTitle(colorKey: FolderColorKey | null, label: string): Documen
 	});
 }
 
+function addSubmenu(menu: Menu, title: string, icon: string, fillItems: (target: Menu) => void) {
+	menu.addItem((item: MenuItem) => {
+		item.setTitle(title).setIcon(icon);
+		// setSubmenu есть в рантайме Obsidian, но отсутствует в публичных типах.
+		// На старом или изменённом API сохраняем действия в родительском меню.
+		const withSubmenu = item as MenuItem & { setSubmenu?: () => Menu };
+		if (typeof withSubmenu.setSubmenu === "function") {
+			fillItems(withSubmenu.setSubmenu());
+		} else {
+			fillItems(menu);
+		}
+	});
+}
+
 function addFolderColorMenu(view: ColumnExplorerView, menu: Menu, folder: TFolder) {
 	const current = view.plugin.settings.folderColors[folder.path];
 	const capitalized = (k: string) => "color" + k.charAt(0).toUpperCase() + k.slice(1);
@@ -68,17 +82,7 @@ function addFolderColorMenu(view: ColumnExplorerView, menu: Menu, folder: TFolde
 			}));
 	};
 
-	menu.addItem((item: MenuItem) => {
-		item.setTitle(t("folderColor")).setIcon("palette");
-		// setSubmenu есть в рантайме, но отсутствует в публичных типах;
-		// при его пропаже пункты лягут плоско в родительское меню
-		const withSubmenu = item as MenuItem & { setSubmenu?: () => Menu };
-		if (typeof withSubmenu.setSubmenu === "function") {
-			fillColorItems(withSubmenu.setSubmenu());
-		} else {
-			fillColorItems(menu);
-		}
-	});
+	addSubmenu(menu, t("folderColor"), "palette", fillColorItems);
 }
 
 export function showFileMenu(view: ColumnExplorerView, e: MouseEvent, f: TAbstractFile, depth: number) {
@@ -95,7 +99,7 @@ export function showFileMenu(view: ColumnExplorerView, e: MouseEvent, f: TAbstra
 		menu.addItem(i => i.setTitle(t("moveTo")).setIcon("folder-input")
 			.onClick(() => new FolderSuggestModal(app, (target) => {
 				void moveFiles(app, paths, target).then(() => view.clearMulti());
-			}).open()));
+			}, paths).open()));
 		menu.addItem(i => i.setTitle(t("duplicateN", { n: paths.length })).setIcon("copy")
 			.onClick(async () => {
 				for (const p of paths) {
@@ -104,6 +108,7 @@ export function showFileMenu(view: ColumnExplorerView, e: MouseEvent, f: TAbstra
 					else if (file instanceof TFolder) await duplicateFolder(app, file);
 				}
 			}));
+		menu.addSeparator();
 		menu.addItem(i => i.setTitle(t("deleteN", { n: paths.length })).setIcon("trash")
 			.onClick(() => view.deleteMany(paths)));
 		menu.showAtMouseEvent(e);
@@ -164,36 +169,38 @@ export function showFileMenu(view: ColumnExplorerView, e: MouseEvent, f: TAbstra
 	menu.addItem(i => i.setTitle(isFav ? t("removeFavorite") : t("addFavorite")).setIcon(isFav ? "star-off" : "star")
 		.onClick(() => view.toggleFavorite(f.path)));
 	menu.addItem(i => i.setTitle(t("moveTo")).setIcon("folder-input")
-		.onClick(() => new FolderSuggestModal(app, (target) => void moveFiles(app, [f.path], target)).open()));
+		.onClick(() => new FolderSuggestModal(app, (target) => void moveFiles(app, [f.path], target), [f.path]).open()));
 	menu.addItem(i => i.setTitle(t("rename")).setIcon("pencil")
 		.onClick(() => view.startRename(f)));
-	menu.addItem(i => i.setTitle(t("delete")).setIcon("trash")
-		.onClick(() => view.deleteMany([f.path])));
-	menu.addSeparator();
-	menu.addItem(i => i.setTitle(t("copyPath")).setIcon("clipboard-copy")
-		.onClick(() => copyToClipboard(f.path, t("pathCopied"))));
-	// Абсолютный системный путь с shell-экранированием (как драг в терминал).
-	// Только для десктопа — на мобильном базового пути файловой системы нет
-	const adapter = app.vault.adapter;
-	if (adapter instanceof FileSystemAdapter) {
-		menu.addItem(i => i.setTitle(t("copyFullPath")).setIcon("terminal")
-			.onClick(() => copyToClipboard(shellEscapePath(adapter.getBasePath() + "/" + f.path), t("pathCopied"))));
-	}
-	if (f instanceof TFile) {
-		menu.addItem(i => i.setTitle(t("copyWikiLink")).setIcon("brackets")
-			.onClick(() => copyToClipboard("[[" + app.metadataCache.fileToLinktext(f, "", false) + "]]", t("linkCopied"))));
-		menu.addItem(i => i.setTitle(t("copyMdLink")).setIcon("link")
-			.onClick(() => copyToClipboard(app.fileManager.generateMarkdownLink(f, ""), t("linkCopied"))));
-		menu.addItem(i => i.setTitle(t("copyObsidianUrl")).setIcon("external-link")
-			.onClick(() => {
-				const url = "obsidian://open?vault=" + encodeURIComponent(app.vault.getName())
-					+ "&file=" + encodeURIComponent(f.path);
-				copyToClipboard(url, t("linkCopied"));
-			}));
-	}
+
+	addSubmenu(menu, t("copyAs"), "copy", (target) => {
+		target.addItem(i => i.setTitle(t("copyPath")).setIcon("clipboard-copy")
+			.onClick(() => copyToClipboard(f.path, t("pathCopied"))));
+		// Полный системный путь доступен только у desktop filesystem adapter.
+		const adapter = app.vault.adapter;
+		if (adapter instanceof FileSystemAdapter) {
+			target.addItem(i => i.setTitle(t("copyFullPath")).setIcon("terminal")
+				.onClick(() => copyToClipboard(shellEscapePath(adapter.getBasePath() + "/" + f.path), t("pathCopied"))));
+		}
+		if (f instanceof TFile) {
+			target.addItem(i => i.setTitle(t("copyWikiLink")).setIcon("brackets")
+				.onClick(() => copyToClipboard("[[" + app.metadataCache.fileToLinktext(f, "", false) + "]]", t("linkCopied"))));
+			target.addItem(i => i.setTitle(t("copyMdLink")).setIcon("link")
+				.onClick(() => copyToClipboard(app.fileManager.generateMarkdownLink(f, ""), t("linkCopied"))));
+			target.addItem(i => i.setTitle(t("copyObsidianUrl")).setIcon("external-link")
+				.onClick(() => {
+					const url = "obsidian://open?vault=" + encodeURIComponent(app.vault.getName())
+						+ "&file=" + encodeURIComponent(f.path);
+					copyToClipboard(url, t("linkCopied"));
+				}));
+		}
+	});
 
 	// Стандартное меню Obsidian: пункты ядра и других плагинов
 	app.workspace.trigger("file-menu", menu, f, "file-explorer-context-menu", view.leaf);
+	menu.addSeparator();
+	menu.addItem(i => i.setTitle(t("delete")).setIcon("trash")
+		.onClick(() => view.deleteMany([f.path])));
 
 	menu.showAtMouseEvent(e);
 }

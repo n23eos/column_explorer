@@ -108,7 +108,7 @@ export function buildActionBar(view: ColumnExplorerView, container: HTMLElement)
 		const paths = [...view.multiSel];
 		new FolderSuggestModal(view.app, (target) => {
 			void moveFiles(view.app, paths, target).then(() => view.exitMobileSelection());
-		}).open();
+		}, paths).open();
 	});
 	action("copy", t("duplicate"), () => {
 		view.duplicateSelected(view.multiSelDepth);

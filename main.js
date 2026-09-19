@@ -370,6 +370,7 @@ function normalizeSettings(raw) {
   return {
     columnWidth: clampInt(raw.columnWidth, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH),
     columnWidths: cleanWidths(raw.columnWidths),
+    lockColumnWidths: raw.lockColumnWidths !== false,
     recentFilesCount: clampInt(raw.recentFilesCount, MIN_RECENT_FILES, MAX_RECENT_FILES, DEFAULT_RECENT_FILES),
     // null — режим «показывать все колонки», это валидное значение
     lockedColumnCount: typeof locked === "number" && Number.isFinite(locked) ? Math.max(1, Math.round(locked)) : null,
@@ -393,6 +394,8 @@ function normalizeSettings(raw) {
 
 // src/locales/en.ts
 var en = {
+  lockColumnWidths: "Lock column widths",
+  lockColumnWidthsDesc: "Prevent automatic panel resizing when switching files. You can still resize columns manually. Turn off to allow the Auto-resize panel setting.",
   newNote: "New note",
   newFolder: "New folder",
   reveal: "Reveal active file",
@@ -588,6 +591,8 @@ var en = {
 
 // src/locales/ru.ts
 var ru = {
+  lockColumnWidths: "\u0417\u0430\u0444\u0438\u043A\u0441\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0448\u0438\u0440\u0438\u043D\u0443 \u043A\u043E\u043B\u043E\u043D\u043E\u043A",
+  lockColumnWidthsDesc: "\u041D\u0435 \u043C\u0435\u043D\u044F\u0442\u044C \u0448\u0438\u0440\u0438\u043D\u0443 \u043F\u0430\u043D\u0435\u043B\u0438 \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438 \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0438 \u0444\u0430\u0439\u043B\u043E\u0432. \u041A\u043E\u043B\u043E\u043D\u043A\u0438 \u043C\u043E\u0436\u043D\u043E \u043C\u0435\u043D\u044F\u0442\u044C \u0432\u0440\u0443\u0447\u043D\u0443\u044E. \u041E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u0435 \u0444\u0438\u043A\u0441\u0430\u0446\u0438\u044E, \u0447\u0442\u043E\u0431\u044B \u0440\u0430\u0437\u0440\u0435\u0448\u0438\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0443 \u0430\u0432\u0442\u043E\u043F\u043E\u0434\u0433\u043E\u043D\u043A\u0438 \u043F\u0430\u043D\u0435\u043B\u0438.",
   newNote: "\u041D\u043E\u0432\u0430\u044F \u0437\u0430\u043C\u0435\u0442\u043A\u0430",
   newFolder: "\u041D\u043E\u0432\u0430\u044F \u043F\u0430\u043F\u043A\u0430",
   reveal: "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0430\u043A\u0442\u0438\u0432\u043D\u044B\u0439 \u0444\u0430\u0439\u043B",
@@ -783,6 +788,8 @@ var ru = {
 
 // src/locales/es.ts
 var es = {
+  lockColumnWidths: "Fijar el ancho de las columnas",
+  lockColumnWidthsDesc: "Evita cambiar autom\xE1ticamente el ancho del panel al cambiar de archivo. Las columnas se pueden ajustar manualmente. Desact\xEDvalo para permitir el ajuste autom\xE1tico del panel.",
   newNote: "Nueva nota",
   newFolder: "Nueva carpeta",
   reveal: "Mostrar el archivo activo",
@@ -978,6 +985,8 @@ var es = {
 
 // src/locales/fr.ts
 var fr = {
+  lockColumnWidths: "Verrouiller la largeur des colonnes",
+  lockColumnWidthsDesc: "Emp\xEAche le redimensionnement automatique du panneau lors du changement de fichier. Les colonnes restent ajustables manuellement. D\xE9sactivez pour autoriser le r\xE9glage automatique du panneau.",
   newNote: "Nouvelle note",
   newFolder: "Nouveau dossier",
   reveal: "Afficher le fichier actif",
@@ -1173,6 +1182,8 @@ var fr = {
 
 // src/locales/it.ts
 var it = {
+  lockColumnWidths: "Blocca la larghezza delle colonne",
+  lockColumnWidthsDesc: "Impedisce il ridimensionamento automatico del pannello quando cambi file. Le colonne restano regolabili manualmente. Disattiva per consentire il ridimensionamento automatico del pannello.",
   newNote: "Nuova nota",
   newFolder: "Nuova cartella",
   reveal: "Mostra il file attivo",
@@ -1368,6 +1379,8 @@ var it = {
 
 // src/locales/de.ts
 var de = {
+  lockColumnWidths: "Spaltenbreiten fixieren",
+  lockColumnWidthsDesc: "Verhindert automatische Gr\xF6\xDFen\xE4nderungen beim Dateiwechsel. Spalten bleiben manuell ver\xE4nderbar. Deaktivieren, um die automatische Panelgr\xF6\xDFe zu erlauben.",
   newNote: "Neue Notiz",
   newFolder: "Neuer Ordner",
   reveal: "Aktive Datei anzeigen",
@@ -1563,6 +1576,8 @@ var de = {
 
 // src/locales/pt-BR.ts
 var ptBR = {
+  lockColumnWidths: "Fixar a largura das colunas",
+  lockColumnWidthsDesc: "Impede o redimensionamento autom\xE1tico do painel ao trocar de arquivo. As colunas continuam ajust\xE1veis manualmente. Desative para permitir o ajuste autom\xE1tico do painel.",
   newNote: "Nova nota",
   newFolder: "Nova pasta",
   reveal: "Mostrar o arquivo ativo",
@@ -1758,6 +1773,8 @@ var ptBR = {
 
 // src/locales/zh.ts
 var zh = {
+  lockColumnWidths: "\u56FA\u5B9A\u5217\u5BBD",
+  lockColumnWidthsDesc: "\u5207\u6362\u6587\u4EF6\u65F6\u4E0D\u81EA\u52A8\u8C03\u6574\u9762\u677F\u5BBD\u5EA6\u3002\u4ECD\u53EF\u624B\u52A8\u8C03\u6574\u5217\u5BBD\u3002\u5173\u95ED\u540E\u5141\u8BB8\u9762\u677F\u81EA\u52A8\u8C03\u6574\u8BBE\u7F6E\u751F\u6548\u3002",
   newNote: "\u65B0\u5EFA\u7B14\u8BB0",
   newFolder: "\u65B0\u5EFA\u6587\u4EF6\u5939",
   reveal: "\u5B9A\u4F4D\u5F53\u524D\u6587\u4EF6",
@@ -1953,6 +1970,8 @@ var zh = {
 
 // src/locales/ja.ts
 var ja = {
+  lockColumnWidths: "\u5217\u306E\u5E45\u3092\u56FA\u5B9A",
+  lockColumnWidthsDesc: "\u30D5\u30A1\u30A4\u30EB\u5207\u308A\u66FF\u3048\u6642\u306B\u30D1\u30CD\u30EB\u5E45\u3092\u81EA\u52D5\u5909\u66F4\u3057\u307E\u305B\u3093\u3002\u5217\u5E45\u306F\u624B\u52D5\u3067\u5909\u66F4\u3067\u304D\u307E\u3059\u3002\u30D1\u30CD\u30EB\u306E\u81EA\u52D5\u8ABF\u6574\u3092\u8A31\u53EF\u3059\u308B\u306B\u306F\u30AA\u30D5\u306B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   newNote: "\u65B0\u898F\u30CE\u30FC\u30C8",
   newFolder: "\u65B0\u898F\u30D5\u30A9\u30EB\u30C0",
   reveal: "\u30A2\u30AF\u30C6\u30A3\u30D6\u306A\u30D5\u30A1\u30A4\u30EB\u3092\u8868\u793A",
@@ -2148,6 +2167,8 @@ var ja = {
 
 // src/locales/ko.ts
 var ko = {
+  lockColumnWidths: "\uC5F4 \uB108\uBE44 \uACE0\uC815",
+  lockColumnWidthsDesc: "\uD30C\uC77C \uC804\uD658 \uC2DC \uD328\uB110 \uB108\uBE44\uAC00 \uC790\uB3D9\uC73C\uB85C \uBC14\uB00C\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. \uC5F4 \uB108\uBE44\uB294 \uC218\uB3D9\uC73C\uB85C \uC870\uC808\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uD328\uB110 \uC790\uB3D9 \uD06C\uAE30 \uC870\uC815\uC744 \uD5C8\uC6A9\uD558\uB824\uBA74 \uB044\uC138\uC694.",
   newNote: "\uC0C8 \uB178\uD2B8",
   newFolder: "\uC0C8 \uD3F4\uB354",
   reveal: "\uD604\uC7AC \uD30C\uC77C \uD45C\uC2DC",
@@ -2389,6 +2410,7 @@ var DEFAULT_SETTINGS = {
   columnWidth: DEFAULT_COLUMN_WIDTH,
   columnWidths: {},
   autoPanelResize: true,
+  lockColumnWidths: true,
   sortMode: "name-asc",
   excludePatterns: "",
   folderColors: {},
@@ -2474,6 +2496,7 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
         type: "group",
         heading: t("headColumns"),
         items: [
+          { name: t("lockColumnWidths"), desc: t("lockColumnWidthsDesc"), control: { type: "toggle", key: "lockColumnWidths" } },
           { name: t("setAutoPanel"), desc: t("setAutoPanelDesc"), control: { type: "toggle", key: "autoPanelResize" } },
           {
             name: t("setColWidth"),
@@ -2637,6 +2660,10 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
       saveTextInput();
     }));
     new import_obsidian2.Setting(containerEl).setName(t("headColumns")).setHeading();
+    new import_obsidian2.Setting(containerEl).setName(t("lockColumnWidths")).setDesc(t("lockColumnWidthsDesc")).addToggle((tg) => tg.setValue(s.lockColumnWidths).onChange(async (v) => {
+      s.lockColumnWidths = v;
+      await save();
+    }));
     new import_obsidian2.Setting(containerEl).setName(t("setAutoPanel")).setDesc(t("setAutoPanelDesc")).addToggle((tg) => tg.setValue(s.autoPanelResize).onChange(async (v) => {
       s.autoPanelResize = v;
       await save();
@@ -5033,6 +5060,16 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
         this.render();
       });
       this.updateLockButton();
+      this.widthLockBtn = toolbar.createEl("button", {
+        cls: "clickable-icon column-explorer-toolbar-btn",
+        attr: { type: "button", "aria-label": t("lockColumnWidths"), "data-action": "lock-column-widths" }
+      });
+      (0, import_obsidian13.setIcon)(this.widthLockBtn, "ruler");
+      this.registerDomEvent(this.widthLockBtn, "click", () => {
+        this.plugin.settings.lockColumnWidths = !this.plugin.settings.lockColumnWidths;
+        void this.plugin.saveSettings();
+        this.render();
+      });
     }
     if (import_obsidian13.Platform.isMobile) {
       this.searchRowEl = container.createDiv({ cls: "column-explorer-search-row" });
@@ -5381,6 +5418,11 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
   }
   render() {
     var _a, _b;
+    if (this.widthLockBtn) {
+      const locked = this.plugin.settings.lockColumnWidths;
+      this.widthLockBtn.setAttribute("aria-pressed", String(locked));
+      this.widthLockBtn.toggleClass("is-active", locked);
+    }
     clearActiveDrag();
     commitActiveResize();
     const scrollTops = this.captureScrollTops();
@@ -5476,7 +5518,7 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
   }
   /** Авто-ширина панели: подгоняет ширину сайдбара под суммарную ширину колонок. */
   autoResizePanel() {
-    if (!this.plugin.settings.autoPanelResize || import_obsidian13.Platform.isMobile) return;
+    if (this.plugin.settings.lockColumnWidths || !this.plugin.settings.autoPanelResize || import_obsidian13.Platform.isMobile) return;
     const ws = this.app.workspace;
     const root = this.leaf.getRoot();
     if (root !== ws.leftSplit && root !== ws.rightSplit) return;

@@ -50,7 +50,11 @@ export class QuickLookModal extends Modal {
 
 /** Fuzzy folder picker used by "Move to folder…". */
 export class FolderSuggestModal extends FuzzySuggestModal<TFolder> {
-	constructor(app: App, private onChoose: (folder: TFolder) => void) {
+	constructor(
+		app: App,
+		private onChoose: (folder: TFolder) => void,
+		private sourcePaths: readonly string[] = [],
+	) {
 		super(app);
 		this.setPlaceholder(t("moveToPlaceholder"));
 	}
@@ -66,7 +70,28 @@ export class FolderSuggestModal extends FuzzySuggestModal<TFolder> {
 			}
 		};
 		walk(this.app.vault.getRoot());
-		return folders;
+
+		const sources = this.sourcePaths
+			.map((path) => this.app.vault.getAbstractFileByPath(path))
+			.filter((source) => source !== null);
+		const isInsideSourceFolder = (target: TFolder, source: TFolder): boolean => {
+			let current: TFolder | null = target;
+			while (current) {
+				if (current.path === source.path) return true;
+				current = current.parent;
+			}
+			return false;
+		};
+
+		return folders.filter((target) => {
+			if (sources.some((source) => source instanceof TFolder && isInsideSourceFolder(target, source))) {
+				return false;
+			}
+			// Направление является холостым, только если каждый источник уже там.
+			// При разных родителях оставляем цель, куда переместится хотя бы один.
+			const allSourcesResolved = sources.length > 0 && sources.length === this.sourcePaths.length;
+			return !allSourcesResolved || !sources.every((source) => source.parent?.path === target.path);
+		});
 	}
 
 	getItemText(folder: TFolder): string {

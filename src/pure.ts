@@ -590,6 +590,8 @@ export function cleanSeenAt(value: unknown): Record<string, number> {
 }
 
 export interface NormalizedSettings {
+	autoPanelResize: boolean;
+	lockColumnWidths: boolean;
 	columnWidth: number;
 	columnWidths: Record<string, number>;
 	recentFilesCount: number;
@@ -615,9 +617,15 @@ export interface NormalizedSettings {
  */
 export function normalizeSettings(raw: Record<string, unknown>): NormalizedSettings {
 	const locked = raw.lockedColumnCount;
+	// `lockColumnWidths` used to override `autoPanelResize`. Collapse both saved
+	// flags into one runtime mode, while keeping the inverse legacy mirror so a
+	// downgrade and the next reload preserve the same effective behaviour.
+	const autoPanelResize = raw.autoPanelResize === true && raw.lockColumnWidths === false;
 	return {
 		columnWidth: clampInt(raw.columnWidth, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH),
 		columnWidths: cleanWidths(raw.columnWidths),
+		autoPanelResize,
+		lockColumnWidths: !autoPanelResize,
 		recentFilesCount: clampInt(raw.recentFilesCount, MIN_RECENT_FILES, MAX_RECENT_FILES, DEFAULT_RECENT_FILES),
 		// null — режим «показывать все колонки», это валидное значение
 		lockedColumnCount: typeof locked === "number" && Number.isFinite(locked)

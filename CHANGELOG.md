@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Simplify the desktop toolbar to Create, Sort and More, and group link/path formats under Copy as.
+- Rename the shared favorites/bookmarks entry to Quick access and separate Calendar and Disk usage under Tools.
+- Replace conflicting panel-width controls with one automatic-sizing option, preserving the previous effective setting and saved column widths.
+- Hide dependent settings while their feature is disabled, in both supported settings interfaces.
+
+### Fixed
+- Apply the name filter and keyboard navigation consistently to Recents, Quick access and calendar-day files.
+- Make toolbar, breadcrumb, view-mode and calendar controls keyboard accessible; show a localized Disk usage breadcrumb.
+- Exclude invalid and entirely redundant destinations from Move to folder.
+- Refresh modification-time and size sorting when files change.
+
+### Performance
+- Keep folder columns alive when moving between files; render a bounded chunk around a far selected file instead of all preceding rows.
+- Postpone hidden Disk usage refreshes until the chart is reopened and count words only when the Words metric is requested.
+
 All notable changes to Column Explorer are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

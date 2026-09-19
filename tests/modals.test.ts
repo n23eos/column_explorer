@@ -15,7 +15,10 @@ import { makeView } from "./setup/view";
 function appWith(paths: string[]) {
 	const vault = makeVault(paths);
 	const app = new MockApp();
-	app.vault = { getRoot: () => vault.getRoot() };
+	app.vault = {
+		getRoot: () => vault.getRoot(),
+		getAbstractFileByPath: (path: string) => vault.getAbstractFileByPath(path),
+	};
 	return { app: app as unknown as App, vault };
 }
 
@@ -130,6 +133,30 @@ describe("FolderSuggestModal", () => {
 		modal.onChooseItem(vault.getAbstractFileByPath("one") as TFolder);
 
 		expect(chosen).toEqual(["one"]);
+	});
+
+	test("excludes a moved folder, its descendants and its current parent", () => {
+		const { app } = appWith(["project/sub/note.md", "other/note.md"]);
+
+		const items = new FolderSuggestModal(app, () => { /* no-op */ }, ["project"]).getItems();
+
+		expect(items.map((folder) => folder.path)).toEqual(["other"]);
+	});
+
+	test("excludes a no-op parent shared by all source files", () => {
+		const { app } = appWith(["one/a.md", "one/b.md", "two/c.md"]);
+
+		const items = new FolderSuggestModal(app, () => { /* no-op */ }, ["one/a.md", "one/b.md"]).getItems();
+
+		expect(items.map((folder) => folder.path)).not.toContain("one");
+	});
+
+	test("keeps a parent that moves at least one source from another folder", () => {
+		const { app } = appWith(["one/a.md", "two/b.md"]);
+
+		const items = new FolderSuggestModal(app, () => { /* no-op */ }, ["one/a.md", "two/b.md"]).getItems();
+
+		expect(items.map((folder) => folder.path)).toEqual(["/", "one", "two"]);
 	});
 });
 

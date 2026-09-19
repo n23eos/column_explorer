@@ -39,7 +39,9 @@ export class SunburstController extends Component {
 	private nodeByPath: Map<string, TreeNode> = new Map();
 	private layouts: Partial<Record<Metric, Layout>> = {};
 	private wordCache: Map<string, WordCacheEntry> = new Map();
+	private wordsByPath: Map<string, number> = new Map();
 	private wordsReady = false;
+	private wordsDirty = true;
 
 	private metric: Metric = "size";
 	private rootPath: string = ROOT_PATH;
@@ -48,6 +50,12 @@ export class SunburstController extends Component {
 	private radius = 280;
 	private animToken = 0;
 	private isClosed = false;
+	private isMounted = false;
+	private dataDirty = true;
+	private revision = 0;
+	private rescanQueued = false;
+	private pendingIntro = true;
+	private pendingMetric: Metric | null = null;
 	private rescanChain: Promise<void> = Promise.resolve();
 	private hoveredKey: string | null = null;
 	private arcByKey: Map<string, RenderArc> = new Map();
@@ -66,6 +74,7 @@ export class SunburstController extends Component {
 	private emptyEl: HTMLElement;
 	private resizeObserver: ResizeObserver | null = null;
 	private lastSettingsKey: string;
+	private scheduleRescan = debounce(() => void this.rescan(false), RESCAN_DEBOUNCE_MS, true);
 
 	constructor(private owner: ColumnExplorerView) {
 		super();
@@ -87,14 +96,18 @@ export class SunburstController extends Component {
 			btn.addEventListener("click", () => this.setMetric(metric));
 			this.metricBtns[metric] = btn;
 		}
-		// Слова считаются в фоне: до конца первого прохода кнопка неактивна
+		// До первого лёгкого скана дерево ещё не готово, затем Words можно
+		// запросить отдельно без фонового чтения markdown.
 		const wordsBtn = this.metricBtns.words;
 		if (wordsBtn) wordsBtn.disabled = true;
 
 		const refreshBtn = controls.createEl("button", { cls: "column-explorer-du-icon-btn" });
 		setIcon(refreshBtn, "refresh-cw");
 		setTooltip(refreshBtn, t("duRescan"));
-		refreshBtn.addEventListener("click", () => void this.rescan(false));
+		refreshBtn.addEventListener("click", () => {
+			this.markDirty();
+			void this.rescan(false);
+		});
 
 		this.chartWrap = this.el.createDiv({ cls: "column-explorer-du-chart" });
 		this.svg = document.createElementNS(SVG_NS, "svg");
@@ -123,14 +136,11 @@ export class SunburstController extends Component {
 		}
 		this.updateGeometry();
 
-		const scheduleRescan = debounce(() => void this.rescan(false), RESCAN_DEBOUNCE_MS, true);
 		const vault = this.app.vault;
-		this.registerEvent(vault.on("create", scheduleRescan));
-		this.registerEvent(vault.on("delete", scheduleRescan));
-		this.registerEvent(vault.on("rename", scheduleRescan));
-		this.registerEvent(vault.on("modify", scheduleRescan));
-
-		void this.rescan(true);
+		this.registerEvent(vault.on("create", () => this.onVaultChange()));
+		this.registerEvent(vault.on("delete", () => this.onVaultChange()));
+		this.registerEvent(vault.on("rename", () => this.onVaultChange()));
+		this.registerEvent(vault.on("modify", () => this.onVaultChange()));
 	}
 
 	private get app() {
@@ -138,19 +148,34 @@ export class SunburstController extends Component {
 	}
 
 	/**
-	 * Перенос готового элемента в свежую колонку — без пересборки диаграммы.
+	 * Перенос готового элемента в свежую колонку без пересборки диаграммы.
 	 * Заодно единственное место, где видно изменение настроек: колонка
 	 * перерисовывается после сохранения, а рескан нужен только если поменялись
 	 * исключения или число колец.
 	 */
 	mount(container: HTMLElement) {
+		if (this.isClosed) return;
+		this.isMounted = true;
 		container.appendChild(this.el);
 		const key = this.settingsKey();
 		if (key !== this.lastSettingsKey) {
 			this.lastSettingsKey = key;
-			if (this.tree) void this.rescan(false);
+			this.markDirty();
 		}
 		this.handleResize();
+		void this.rescan(!this.tree);
+	}
+
+	/** Stop background refreshes but keep the tree, cache and active scan. */
+	suspend() {
+		this.isMounted = false;
+		this.scheduleRescan.cancel();
+	}
+
+	/** Detach the chart while preserving its state for a later mount. */
+	unmount() {
+		this.suspend();
+		this.el.detach();
 	}
 
 	private settingsKey(): string {
@@ -160,6 +185,8 @@ export class SunburstController extends Component {
 
 	onunload() {
 		this.isClosed = true;
+		this.isMounted = false;
+		this.scheduleRescan.cancel();
 		this.animToken++;
 		this.resizeObserver?.disconnect();
 		this.resizeObserver = null;
@@ -183,48 +210,110 @@ export class SunburstController extends Component {
 		return this.owner.plugin.settings.storageRingCount;
 	}
 
+	private markDirty() {
+		if (this.isClosed) return;
+		this.dataDirty = true;
+		this.wordsDirty = true;
+		this.revision++;
+	}
+
+	private onVaultChange() {
+		this.markDirty();
+		if (this.isMounted) this.scheduleRescan();
+	}
+
 	/**
-	 * Сканы выстраиваются в очередь: событие vault, настройки и кнопка не
-	 * пересекаются. Отказ гасится здесь же: rejected-промис в хвосте цепочки
-	 * молча проглотил бы ВСЕ последующие сканы, и диаграмма навсегда застыла
-	 * бы на старых данных. Скан — best effort, как и словосчёт внутри него.
+	 * В каждый момент работает не больше одного скана. Событие во время I/O
+	 * оставляет dirty-флаг, поэтому цикл повторится с актуальным снимком.
 	 */
 	private rescan(intro: boolean): Promise<void> {
+		this.pendingIntro ||= intro;
+		if (this.isClosed || !this.isMounted || this.rescanQueued) return this.rescanChain;
+		if (!this.dataDirty && !(this.wordsDirty && (this.metric === "words" || this.pendingMetric === "words"))) {
+			return this.rescanChain;
+		}
+
+		this.rescanQueued = true;
+		let failed = false;
 		this.rescanChain = this.rescanChain
-			.then(() => this.doRescan(intro))
-			.catch(() => { /* следующий скан начнёт с чистой цепочки */ });
+			.then(() => this.drainRescans())
+			.catch(() => {
+				failed = true;
+				this.dataDirty = true;
+				this.resetWordsButton();
+			})
+			.then(() => {
+				this.rescanQueued = false;
+				if (!failed && this.isMounted && this.needsRescan()) void this.rescan(false);
+			});
 		return this.rescanChain;
 	}
 
-	private async doRescan(intro: boolean): Promise<void> {
+	private needsRescan(): boolean {
+		return this.dataDirty || (this.wordsDirty && (this.metric === "words" || this.pendingMetric === "words"));
+	}
+
+	private async drainRescans() {
+		while (!this.isClosed && this.isMounted && this.needsRescan()) {
+			const intro = this.pendingIntro;
+			this.pendingIntro = false;
+			const countWords = this.wordsDirty && (this.metric === "words" || this.pendingMetric === "words");
+			this.dataDirty = false;
+			try {
+				await this.doRescan(intro, countWords);
+			} catch (error) {
+				this.dataDirty = true;
+				throw error;
+			}
+		}
+	}
+
+	private async doRescan(intro: boolean, countWords: boolean): Promise<void> {
 		if (this.isClosed) return;
+		const scanRevision = this.revision;
 		const isExcluded = this.excluded();
-		if (!this.tree) {
-			// Первое открытие: размеры показываем сразу, слова считаем в фоне
-			this.rebuild(new Map(), isExcluded);
-			this.drawStatic();
-			if (intro) this.playIntro();
+		if (countWords) {
+			const wordsBtn = this.metricBtns.words;
+			if (wordsBtn) wordsBtn.disabled = true;
+			const words = await countVaultWords(
+				this.app.vault,
+				this.wordCache,
+				(done, total) => {
+					if (!this.isClosed && wordsBtn) {
+						wordsBtn.setText(`${t("duWords")} ${Math.round((done / total) * 100)}%`);
+					}
+				},
+				isExcluded,
+			);
+			if (this.isClosed) return;
+			this.wordsByPath = words;
+			this.wordsReady = true;
+			if (scanRevision === this.revision) this.wordsDirty = false;
 		}
-		const wordsBtn = this.metricBtns.words;
-		const words = await countVaultWords(
-			this.app.vault,
-			this.wordCache,
-			(done, total) => {
-				if (!this.wordsReady && !this.isClosed && wordsBtn) {
-					wordsBtn.setText(`${t("duWords")} ${Math.round((done / total) * 100)}%`);
-				}
-			},
-			isExcluded,
-		);
+
 		if (this.isClosed) return;
-		this.rebuild(words, isExcluded);
-		this.wordsReady = true;
-		if (wordsBtn) {
-			wordsBtn.setText(t("duWords"));
-			wordsBtn.disabled = (this.layouts.words?.total ?? 0) <= 0;
-			if (wordsBtn.disabled) setTooltip(wordsBtn, t("duNoWords"));
+		const hadTree = this.tree !== null;
+		this.rebuild(this.wordsByPath, isExcluded);
+		this.resetWordsButton();
+
+		if (this.pendingMetric === "words" && this.wordsReady && !this.wordsDirty) {
+			this.pendingMetric = null;
+			this.applyMetric("words");
+		} else if (!hadTree && intro) {
+			this.drawStatic();
+			this.playIntro();
+		} else {
+			this.drawStatic();
 		}
-		if (!intro) this.drawStatic();
+	}
+
+	private resetWordsButton() {
+		const wordsBtn = this.metricBtns.words;
+		if (!wordsBtn) return;
+		wordsBtn.setText(t("duWords"));
+		wordsBtn.disabled = this.wordsReady && !this.wordsDirty && (this.layouts.words?.total ?? 0) <= 0;
+		if (wordsBtn.disabled) setTooltip(wordsBtn, t("duNoWords"));
+		else wordsBtn.removeAttribute("aria-label");
 	}
 
 	private rebuild(words: ReadonlyMap<string, number>, isExcluded: (p: string) => boolean) {
@@ -396,6 +485,16 @@ export class SunburstController extends Component {
 	}
 
 	private setMetric(metric: Metric) {
+		if (metric === "words" && this.wordsDirty) {
+			this.pendingMetric = "words";
+			void this.rescan(false);
+			return;
+		}
+		this.pendingMetric = null;
+		this.applyMetric(metric);
+	}
+
+	private applyMetric(metric: Metric) {
 		if (metric === this.metric || !this.tree) return;
 		const oldLayout = this.layout();
 		const oldView = { ...this.view };
