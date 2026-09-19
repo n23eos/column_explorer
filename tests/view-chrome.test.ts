@@ -284,10 +284,10 @@ describe("column width lock", () => {
 		const { view, app, plugin } = await mount(["a.md"], { columnWidths: { "/": 310 } }, { getRoot: () => split });
 		Object.assign(app.workspace, { rightSplit: split });
 		const save = vi.spyOn(plugin, "saveSettings");
-		let menu: Menu | undefined;
-		vi.spyOn(Menu.prototype, "showAtMouseEvent").mockImplementation(function (this: Menu) { menu = this; });
+		const showMenu = vi.spyOn(Menu.prototype, "showAtMouseEvent");
 		const toggle = () => {
 			view.contentEl.querySelector<HTMLButtonElement>('[data-action="more"]')!.click();
+			const menu = showMenu.mock.instances.at(-1);
 			const item = menu?.items.find(item => item.title === t("panelAutoWidth"));
 			expect(item?.callback).toBeDefined();
 			item!.callback!();

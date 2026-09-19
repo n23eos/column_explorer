@@ -360,3 +360,5 @@ export function prepareFuzzySearch(query: string): (text: string) => SearchResul
 export function sortSearchResults(results: { match: SearchResult }[]): void {
 	results.sort((a, b) => b.match.score - a.match.score);
 }
+
+export const requireApiVersion = (_version: string): boolean => true;

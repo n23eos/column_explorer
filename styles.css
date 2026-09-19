@@ -1159,7 +1159,7 @@
 	min-width: 0;
 }
 
-.column-explorer-clear-filter[hidden] {
+.column-explorer-container button.column-explorer-clear-filter[hidden] {
 	display: none;
 }
 
@@ -1196,7 +1196,8 @@
 }
 
 .column-explorer-list.is-grid > .column-explorer-section-label,
-.column-explorer-list.is-grid > .column-explorer-section-divider {
+.column-explorer-list.is-grid > .column-explorer-section-divider,
+.column-explorer-list.is-grid > .column-explorer-load-more {
 	grid-column: 1 / -1;
 }
 

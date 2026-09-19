@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem, SliderComponent, debounce } from "obsidian";
+import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem, SliderComponent, debounce, requireApiVersion } from "obsidian";
 import { t } from "./i18n";
 import {
 	DEFAULT_COLUMN_WIDTH, DEFAULT_MOBILE_ICON, DEFAULT_MOBILE_SCALE, DEFAULT_RECENT_FILES,
@@ -299,10 +299,10 @@ export class ColumnExplorerSettingTab extends PluginSettingTab {
 		}
 		await this.plugin.saveSettings();
 		this.plugin.getView()?.render();
-		if (key === "showPreview" || key === "showRecents" || key === "showStorage") {
-			// update() exists in the declarative settings API (Obsidian 1.13+).
+		if (requireApiVersion("1.13.0") && (key === "showPreview" || key === "showRecents" || key === "showStorage")) {
+			// Re-evaluate predicates without rebuilding the settings DOM (Obsidian 1.13+).
 			// The optional call keeps the legacy 1.8.7 runtime compatible.
-			(this as unknown as { update?: () => void }).update?.();
+			this.refreshDomState?.();
 		}
 	}
 

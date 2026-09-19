@@ -111,6 +111,12 @@ export class ColumnExplorerView extends ItemView {
 		// находит "Column Explorer". Регистр матчер учитывает сам
 		this.filterMatcher = this.filter ? prepareFuzzySearch(this.filter) : null;
 		this.clearMulti();
+		const depth = this.selection.length - 1;
+		const selected = this.selection[depth];
+		if (selected && !selected.startsWith("::") && !this.siblingsAt(depth).some(item => item.path === selected)) {
+			this.selection = this.selection.slice(0, depth);
+			this.persistState();
+		}
 		this.render();
 	}, 150, true);
 
@@ -562,6 +568,7 @@ export class ColumnExplorerView extends ItemView {
 				const prevTop = list.scrollTop;
 				renderColumnList(this, list, folder, depth);
 				list.scrollTop = prevTop;
+				list.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
 			}
 		}
 		this.dirtyFolders.clear();

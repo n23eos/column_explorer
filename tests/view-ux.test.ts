@@ -191,6 +191,19 @@ test("per-folder sort overrides control modify refreshes", async () => {
 	expect(pathsAt(view, "notes")).toEqual(["notes/alpha.md", "notes/beta.md"]);
 });
 
+test("dynamic sorting keeps the selected file visible after it moves", async () => {
+	const { view, app, vault } = await mount(["notes/alpha.md", "notes/beta.md"], { sortMode: "mtime-desc" });
+	view.selection = ["notes", "notes/alpha.md"];
+	view.render();
+	const list = view.columnsEl.querySelector<HTMLElement>('[data-folder-path="notes"] .column-explorer-list')!;
+	list.scrollTop = 500;
+	const scroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+	const file = vault.getAbstractFileByPath("notes/alpha.md") as TFile;
+	file.stat.mtime = 100;
+	app.vault.trigger("modify", file);
+	expect(scroll.mock.instances).toContain(list.querySelector('[aria-selected="true"]'));
+});
+
 test("keyboard focus survives switching list/grid and toggling favorites", async () => {
 	const { view } = await mount();
 	const toggle = view.columnsEl.querySelector<HTMLButtonElement>(".column-explorer-view-toggle")!;
@@ -203,4 +216,18 @@ test("keyboard focus survives switching list/grid and toggling favorites", async
 	star.click();
 	expect(document.activeElement).toBe(view.contentEl.querySelector(".column-explorer-fav-btn"));
 	expect(document.activeElement?.getAttribute("aria-pressed")).toBe("true");
+});
+
+test.each(["folder", "recents", "favorites", "day"])("filter clears an invisible selected file and preview in %s", async (kind) => {
+	const { view, vault } = await mount(undefined, { showPreview: true, showCalendar: true, recentFiles: ["alpha.md", "beta.md"], favorites: ["alpha.md", "beta.md"] });
+	if (kind === "recents") view.selectSpecial(RECENTS_PATH);
+	else if (kind === "favorites") view.selectSpecial(BOOKMARKS_PATH);
+	else if (kind === "day") view.selectDay(dayKey((vault.getAbstractFileByPath("alpha.md") as TFile).stat.ctime));
+	const prefix = [...view.selection];
+	view.selection.push("alpha.md");
+	view.render();
+	filter(view, "beta");
+	expect(view.selection).toEqual(prefix);
+	expect(view.columnsEl.querySelector(".column-explorer-preview")).toBeNull();
+	expect(view.columnsEl.querySelector('.column-explorer-item.is-selected[data-path="alpha.md"]')).toBeNull();
 });

@@ -178,14 +178,14 @@ describe("setControlValue", () => {
 
 	test("parent toggles ask declarative settings to re-evaluate visibility", async () => {
 		const { tab } = makeTab();
-		const update = vi.fn();
-		Object.assign(tab, { update });
+		const refreshDomState = vi.fn();
+		Object.assign(tab, { refreshDomState });
 
 		await tab.setControlValue("showPreview", true);
 		await tab.setControlValue("showRecents", false);
 		await tab.setControlValue("showStorage", false);
 
-		expect(update).toHaveBeenCalledTimes(3);
+		expect(refreshDomState).toHaveBeenCalledTimes(3);
 	});
 });
 

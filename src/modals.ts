@@ -90,7 +90,11 @@ export class FolderSuggestModal extends FuzzySuggestModal<TFolder> {
 			// Направление является холостым, только если каждый источник уже там.
 			// При разных родителях оставляем цель, куда переместится хотя бы один.
 			const allSourcesResolved = sources.length > 0 && sources.length === this.sourcePaths.length;
-			return !allSourcesResolved || !sources.every((source) => source.parent?.path === target.path);
+			return !allSourcesResolved || sources.some((source) => {
+				if (source.parent?.path === target.path) return false;
+				const destination = (target.isRoot() ? "" : target.path + "/") + source.name;
+				return !this.app.vault.getAbstractFileByPath(destination);
+			});
 		});
 	}
 

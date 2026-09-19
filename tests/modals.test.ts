@@ -151,6 +151,12 @@ describe("FolderSuggestModal", () => {
 		expect(items.map((folder) => folder.path)).not.toContain("one");
 	});
 
+	test("excludes targets where every remaining source collides", () => {
+		const { app } = appWith(["one/a.md", "two/a.md"]);
+		const items = new FolderSuggestModal(app, () => { /* no-op */ }, ["one/a.md", "two/a.md"]).getItems();
+		expect(items.map((folder) => folder.path)).toEqual(["/"]);
+	});
+
 	test("keeps a parent that moves at least one source from another folder", () => {
 		const { app } = appWith(["one/a.md", "two/b.md"]);
 
