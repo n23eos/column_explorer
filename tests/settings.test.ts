@@ -202,7 +202,7 @@ describe("panel auto-resize migration", () => {
 		expect(normalized.autoPanelResize).toBe(expected);
 		expect(normalized.lockColumnWidths).toBe(!expected);
 		expect(normalized.columnWidths).toEqual(columnWidths);
-		expect(normalizeSettings(normalized)).toEqual(normalized);
+		expect(normalizeSettings({ ...normalized })).toEqual(normalized);
 	});
 
 	test("a pre-lock saved value keeps the locked upgrade behaviour", () => {

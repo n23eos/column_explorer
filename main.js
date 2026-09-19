@@ -367,10 +367,12 @@ function cleanSeenAt(value) {
 }
 function normalizeSettings(raw) {
   const locked = raw.lockedColumnCount;
+  const autoPanelResize = raw.autoPanelResize === true && raw.lockColumnWidths === false;
   return {
     columnWidth: clampInt(raw.columnWidth, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH),
     columnWidths: cleanWidths(raw.columnWidths),
-    lockColumnWidths: raw.lockColumnWidths !== false,
+    autoPanelResize,
+    lockColumnWidths: !autoPanelResize,
     recentFilesCount: clampInt(raw.recentFilesCount, MIN_RECENT_FILES, MAX_RECENT_FILES, DEFAULT_RECENT_FILES),
     // null — режим «показывать все колонки», это валидное значение
     lockedColumnCount: typeof locked === "number" && Number.isFinite(locked) ? Math.max(1, Math.round(locked)) : null,
@@ -401,6 +403,8 @@ var en = {
   reveal: "Reveal active file",
   collapse: "Collapse to root",
   search: "Filter files\u2026",
+  filterColumns: "Filter open columns\u2026",
+  clearFilter: "Clear filter",
   sort: "Sort order",
   empty: "Empty",
   noResults: "No matches",
@@ -411,6 +415,7 @@ var en = {
   rename: "Rename",
   delete: "Delete",
   copy: "Copy",
+  copyAs: "Copy as",
   cut: "Cut",
   paste: "Paste",
   itemsPasted: "{n} items pasted",
@@ -490,8 +495,8 @@ var en = {
   colorPink: "Pink",
   viewAsList: "View as list",
   viewAsGrid: "View as icons",
-  pin: "Pin to top",
-  unpin: "Unpin",
+  pin: "Pin in this folder",
+  unpin: "Unpin from this folder",
   newCanvas: "New canvas",
   copyWikiLink: "Copy wikilink",
   copyMdLink: "Copy Markdown link",
@@ -505,6 +510,9 @@ var en = {
   setFolderNoteDesc: "Selecting a folder also opens the note with the same name inside it, when one exists.",
   lockPanel: "Lock column count",
   unlockPanel: "Unlock columns",
+  lockColumnCount: "Lock {n} columns",
+  unlockColumnCount: "Show all columns",
+  panelAutoWidth: "Auto-fit panel width",
   recents: "Recents",
   setRecentCount: "Recent files count",
   setRecentCountDesc: "How many files the \u201CRecents\u201D column shows.",
@@ -521,7 +529,7 @@ var en = {
   clearRecentsDesc: "Remove all entries from the recents list.",
   recentsCleared: "Recent files cleared",
   clear: "Clear",
-  bookmarks: "Bookmarks",
+  bookmarks: "Quick access",
   calendar: "Calendar",
   favorites: "Favorites",
   addFavorite: "Add to favorites",
@@ -529,10 +537,10 @@ var en = {
   favoriteAdded: "Path added to favorites",
   favoriteRemoved: "Removed from favorites",
   setShowFavorites: "Show favorites",
-  setShowFavoritesDesc: "Show your saved favorite files and folders at the top of the Bookmarks column.",
+  setShowFavoritesDesc: "Show saved favorite files and folders at the top of Quick access.",
   headSpecial: "Special items",
-  setShowBookmarks: "Show bookmarks",
-  setShowBookmarksDesc: "Show the bookmarks row (needs the core Bookmarks plugin).",
+  setShowBookmarks: "Show bookmarks in Quick access",
+  setShowBookmarksDesc: "Include items from the core Bookmarks plugin in Quick access.",
   setShowCalendar: "Show calendar",
   setShowCalendarDesc: "Show the calendar row: notes by creation day.",
   setSpecialPos: "Special items position",
@@ -545,6 +553,7 @@ var en = {
   navUp: "Go to parent folder",
   create: "Create",
   more: "More actions",
+  tools: "Tools",
   preview: "Preview",
   close: "Close",
   selectedN: "{n} selected",
@@ -598,6 +607,8 @@ var ru = {
   reveal: "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0430\u043A\u0442\u0438\u0432\u043D\u044B\u0439 \u0444\u0430\u0439\u043B",
   collapse: "\u0421\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u043A \u043A\u043E\u0440\u043D\u044E",
   search: "\u0424\u0438\u043B\u044C\u0442\u0440 \u0444\u0430\u0439\u043B\u043E\u0432\u2026",
+  filterColumns: "\u0424\u0438\u043B\u044C\u0442\u0440 \u0432 \u043E\u0442\u043A\u0440\u044B\u0442\u044B\u0445 \u043A\u043E\u043B\u043E\u043D\u043A\u0430\u0445\u2026",
+  clearFilter: "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0444\u0438\u043B\u044C\u0442\u0440",
   sort: "\u0421\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u043A\u0430",
   empty: "\u041F\u0443\u0441\u0442\u043E",
   noResults: "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E",
@@ -608,6 +619,7 @@ var ru = {
   rename: "\u041F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C",
   delete: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C",
   copy: "\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
+  copyAs: "\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043A\u0430\u043A",
   cut: "\u0412\u044B\u0440\u0435\u0437\u0430\u0442\u044C",
   paste: "\u0412\u0441\u0442\u0430\u0432\u0438\u0442\u044C",
   itemsPasted: "\u0412\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043E \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432: {n}",
@@ -687,8 +699,8 @@ var ru = {
   colorPink: "\u0420\u043E\u0437\u043E\u0432\u044B\u0439",
   viewAsList: "\u0412\u0438\u0434: \u0441\u043F\u0438\u0441\u043E\u043A",
   viewAsGrid: "\u0412\u0438\u0434: \u0437\u043D\u0430\u0447\u043A\u0438",
-  pin: "\u0417\u0430\u043A\u0440\u0435\u043F\u0438\u0442\u044C \u0441\u0432\u0435\u0440\u0445\u0443",
-  unpin: "\u041E\u0442\u043A\u0440\u0435\u043F\u0438\u0442\u044C",
+  pin: "\u0417\u0430\u043A\u0440\u0435\u043F\u0438\u0442\u044C \u0432 \u044D\u0442\u043E\u0439 \u043F\u0430\u043F\u043A\u0435",
+  unpin: "\u041E\u0442\u043A\u0440\u0435\u043F\u0438\u0442\u044C \u0432 \u044D\u0442\u043E\u0439 \u043F\u0430\u043F\u043A\u0435",
   newCanvas: "\u041D\u043E\u0432\u044B\u0439 \u0445\u043E\u043B\u0441\u0442",
   copyWikiLink: "\u0421\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0432\u0438\u043A\u0438-\u0441\u0441\u044B\u043B\u043A\u0443",
   copyMdLink: "\u0421\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C markdown-\u0441\u0441\u044B\u043B\u043A\u0443",
@@ -702,6 +714,9 @@ var ru = {
   setFolderNoteDesc: "\u0412\u044B\u0431\u043E\u0440 \u043F\u0430\u043F\u043A\u0438 \u0442\u0430\u043A\u0436\u0435 \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0435\u0442 \u0437\u0430\u043C\u0435\u0442\u043A\u0443 \u0441 \u0435\u0451 \u0438\u043C\u0435\u043D\u0435\u043C \u0432\u043D\u0443\u0442\u0440\u0438, \u0435\u0441\u043B\u0438 \u043E\u043D\u0430 \u0435\u0441\u0442\u044C.",
   lockPanel: "\u0417\u0430\u0444\u0438\u043A\u0441\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0447\u0438\u0441\u043B\u043E \u043A\u043E\u043B\u043E\u043D\u043E\u043A",
   unlockPanel: "\u0421\u043D\u044F\u0442\u044C \u0444\u0438\u043A\u0441\u0430\u0446\u0438\u044E \u043A\u043E\u043B\u043E\u043D\u043E\u043A",
+  lockColumnCount: "\u0417\u0430\u0444\u0438\u043A\u0441\u0438\u0440\u043E\u0432\u0430\u0442\u044C {n} \u043A\u043E\u043B\u043E\u043D\u043E\u043A",
+  unlockColumnCount: "\u041D\u0435 \u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0438\u0432\u0430\u0442\u044C \u0447\u0438\u0441\u043B\u043E \u043A\u043E\u043B\u043E\u043D\u043E\u043A",
+  panelAutoWidth: "\u0410\u0432\u0442\u043E\u043F\u043E\u0434\u0433\u043E\u043D\u043A\u0430 \u0448\u0438\u0440\u0438\u043D\u044B \u043F\u0430\u043D\u0435\u043B\u0438",
   recents: "\u041D\u0435\u0434\u0430\u0432\u043D\u0438\u0435",
   setRecentCount: "\u0427\u0438\u0441\u043B\u043E \u043D\u0435\u0434\u0430\u0432\u043D\u0438\u0445 \u0444\u0430\u0439\u043B\u043E\u0432",
   setRecentCountDesc: "\u0421\u043A\u043E\u043B\u044C\u043A\u043E \u0444\u0430\u0439\u043B\u043E\u0432 \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0432 \u043A\u043E\u043B\u043E\u043D\u043A\u0435 \xAB\u041D\u0435\u0434\u0430\u0432\u043D\u0438\u0435\xBB.",
@@ -718,7 +733,7 @@ var ru = {
   clearRecentsDesc: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0432\u0441\u0435 \u0437\u0430\u043F\u0438\u0441\u0438 \u0438\u0437 \u0441\u043F\u0438\u0441\u043A\u0430 \u043D\u0435\u0434\u0430\u0432\u043D\u0438\u0445.",
   recentsCleared: "\u0421\u043F\u0438\u0441\u043E\u043A \u043D\u0435\u0434\u0430\u0432\u043D\u0438\u0445 \u043E\u0447\u0438\u0449\u0435\u043D",
   clear: "\u041E\u0447\u0438\u0441\u0442\u0438\u0442\u044C",
-  bookmarks: "\u0417\u0430\u043A\u043B\u0430\u0434\u043A\u0438",
+  bookmarks: "\u0411\u044B\u0441\u0442\u0440\u044B\u0439 \u0434\u043E\u0441\u0442\u0443\u043F",
   calendar: "\u041A\u0430\u043B\u0435\u043D\u0434\u0430\u0440\u044C",
   favorites: "\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435",
   addFavorite: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0432 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435",
@@ -726,10 +741,10 @@ var ru = {
   favoriteAdded: "\u041F\u0443\u0442\u044C \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D \u0432 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435",
   favoriteRemoved: "\u0423\u0431\u0440\u0430\u043D\u043E \u0438\u0437 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0433\u043E",
   setShowFavorites: "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \xAB\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435\xBB",
-  setShowFavoritesDesc: "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u044B\u0435 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u044B\u0435 \u0444\u0430\u0439\u043B\u044B \u0438 \u043F\u0430\u043F\u043A\u0438 \u0432\u0432\u0435\u0440\u0445\u0443 \u043A\u043E\u043B\u043E\u043D\u043A\u0438 \xAB\u0417\u0430\u043A\u043B\u0430\u0434\u043A\u0438\xBB.",
+  setShowFavoritesDesc: "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u044B\u0435 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u044B\u0435 \u0444\u0430\u0439\u043B\u044B \u0438 \u043F\u0430\u043F\u043A\u0438 \u0432\u0432\u0435\u0440\u0445\u0443 \xAB\u0411\u044B\u0441\u0442\u0440\u043E\u0433\u043E \u0434\u043E\u0441\u0442\u0443\u043F\u0430\xBB.",
   headSpecial: "\u0421\u043F\u0435\u0446\u043F\u0443\u043D\u043A\u0442\u044B",
-  setShowBookmarks: "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \xAB\u0417\u0430\u043A\u043B\u0430\u0434\u043A\u0438\xBB",
-  setShowBookmarksDesc: "\u041F\u0443\u043D\u043A\u0442 \xAB\u0417\u0430\u043A\u043B\u0430\u0434\u043A\u0438\xBB (\u043D\u0443\u0436\u0435\u043D \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0439 \u043F\u043B\u0430\u0433\u0438\u043D Bookmarks).",
+  setShowBookmarks: "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0437\u0430\u043A\u043B\u0430\u0434\u043A\u0438 \u0432 \xAB\u0411\u044B\u0441\u0442\u0440\u043E\u043C \u0434\u043E\u0441\u0442\u0443\u043F\u0435\xBB",
+  setShowBookmarksDesc: "\u0414\u043E\u0431\u0430\u0432\u043B\u044F\u0442\u044C \u0432 \xAB\u0411\u044B\u0441\u0442\u0440\u044B\u0439 \u0434\u043E\u0441\u0442\u0443\u043F\xBB \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u043E\u0433\u043E \u043F\u043B\u0430\u0433\u0438\u043D\u0430 Bookmarks.",
   setShowCalendar: "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \xAB\u041A\u0430\u043B\u0435\u043D\u0434\u0430\u0440\u044C\xBB",
   setShowCalendarDesc: "\u041F\u0443\u043D\u043A\u0442 \xAB\u041A\u0430\u043B\u0435\u043D\u0434\u0430\u0440\u044C\xBB: \u0437\u0430\u043C\u0435\u0442\u043A\u0438 \u043F\u043E \u0434\u043D\u044E \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u044F.",
   setSpecialPos: "\u041F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0441\u043F\u0435\u0446\u043F\u0443\u043D\u043A\u0442\u043E\u0432",
@@ -742,6 +757,7 @@ var ru = {
   navUp: "\u0412 \u0440\u043E\u0434\u0438\u0442\u0435\u043B\u044C\u0441\u043A\u0443\u044E \u043F\u0430\u043F\u043A\u0443",
   create: "\u0421\u043E\u0437\u0434\u0430\u0442\u044C",
   more: "\u0415\u0449\u0451 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F",
+  tools: "\u0418\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u044B",
   preview: "\u041F\u0440\u0435\u0434\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440",
   close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
   selectedN: "\u0412\u044B\u0431\u0440\u0430\u043D\u043E: {n}",
@@ -795,6 +811,8 @@ var es = {
   reveal: "Mostrar el archivo activo",
   collapse: "Contraer a la ra\xEDz",
   search: "Filtrar archivos\u2026",
+  filterColumns: "Filtrar columnas abiertas\u2026",
+  clearFilter: "Borrar filtro",
   sort: "Orden",
   empty: "Vac\xEDo",
   noResults: "Sin coincidencias",
@@ -805,6 +823,7 @@ var es = {
   rename: "Cambiar nombre",
   delete: "Eliminar",
   copy: "Copiar",
+  copyAs: "Copiar como",
   cut: "Cortar",
   paste: "Pegar",
   itemsPasted: "{n} elementos pegados",
@@ -884,8 +903,8 @@ var es = {
   colorPink: "Rosa",
   viewAsList: "Ver como lista",
   viewAsGrid: "Ver como iconos",
-  pin: "Fijar arriba",
-  unpin: "Dejar de fijar",
+  pin: "Fijar en esta carpeta",
+  unpin: "Dejar de fijar en esta carpeta",
   newCanvas: "Nuevo lienzo",
   copyWikiLink: "Copiar el enlace wiki",
   copyMdLink: "Copiar el enlace Markdown",
@@ -899,6 +918,9 @@ var es = {
   setFolderNoteDesc: "Al seleccionar una carpeta se abre tambi\xE9n la nota con su mismo nombre, si existe.",
   lockPanel: "Fijar el n\xFAmero de columnas",
   unlockPanel: "Liberar las columnas",
+  lockColumnCount: "Fijar {n} columnas",
+  unlockColumnCount: "Mostrar todas las columnas",
+  panelAutoWidth: "Ajustar autom\xE1ticamente el ancho del panel",
   recents: "Recientes",
   setRecentCount: "N\xFAmero de archivos recientes",
   setRecentCountDesc: "Cu\xE1ntos archivos muestra la columna \xABRecientes\xBB.",
@@ -915,7 +937,7 @@ var es = {
   clearRecentsDesc: "Elimina todas las entradas de la lista de recientes.",
   recentsCleared: "Lista de recientes vaciada",
   clear: "Vaciar",
-  bookmarks: "Marcadores",
+  bookmarks: "Acceso r\xE1pido",
   calendar: "Calendario",
   favorites: "Favoritos",
   addFavorite: "A\xF1adir a favoritos",
@@ -923,10 +945,10 @@ var es = {
   favoriteAdded: "Ruta a\xF1adida a favoritos",
   favoriteRemoved: "Quitado de favoritos",
   setShowFavorites: "Mostrar los favoritos",
-  setShowFavoritesDesc: "Muestra tus archivos y carpetas favoritos en la parte superior de la columna \xABMarcadores\xBB.",
+  setShowFavoritesDesc: "Muestra los archivos y carpetas favoritos en la parte superior de Acceso r\xE1pido.",
   headSpecial: "Elementos especiales",
-  setShowBookmarks: "Mostrar los marcadores",
-  setShowBookmarksDesc: "Muestra la fila \xABMarcadores\xBB (necesita el plugin Bookmarks).",
+  setShowBookmarks: "Mostrar marcadores en Acceso r\xE1pido",
+  setShowBookmarksDesc: "Incluye en Acceso r\xE1pido los elementos del plugin Bookmarks integrado.",
   setShowCalendar: "Mostrar el calendario",
   setShowCalendarDesc: "Muestra la fila \xABCalendario\xBB: notas por d\xEDa de creaci\xF3n.",
   setSpecialPos: "Posici\xF3n de los elementos especiales",
@@ -939,6 +961,7 @@ var es = {
   navUp: "Ir a la carpeta superior",
   create: "Crear",
   more: "M\xE1s acciones",
+  tools: "Herramientas",
   preview: "Vista previa",
   close: "Cerrar",
   selectedN: "{n} seleccionados",
@@ -992,6 +1015,8 @@ var fr = {
   reveal: "Afficher le fichier actif",
   collapse: "Replier jusqu'\xE0 la racine",
   search: "Filtrer les fichiers\u2026",
+  filterColumns: "Filtrer les colonnes ouvertes\u2026",
+  clearFilter: "Effacer le filtre",
   sort: "Tri",
   empty: "Vide",
   noResults: "Aucun r\xE9sultat",
@@ -1002,6 +1027,7 @@ var fr = {
   rename: "Renommer",
   delete: "Supprimer",
   copy: "Copier",
+  copyAs: "Copier comme",
   cut: "Couper",
   paste: "Coller",
   itemsPasted: "{n} \xE9l\xE9ments coll\xE9s",
@@ -1081,8 +1107,8 @@ var fr = {
   colorPink: "Rose",
   viewAsList: "Afficher en liste",
   viewAsGrid: "Afficher en ic\xF4nes",
-  pin: "\xC9pingler en haut",
-  unpin: "D\xE9tacher",
+  pin: "\xC9pingler dans ce dossier",
+  unpin: "D\xE9tacher de ce dossier",
   newCanvas: "Nouveau canevas",
   copyWikiLink: "Copier le lien wiki",
   copyMdLink: "Copier le lien Markdown",
@@ -1096,6 +1122,9 @@ var fr = {
   setFolderNoteDesc: "S\xE9lectionner un dossier ouvre aussi la note portant le m\xEAme nom \xE0 l'int\xE9rieur, si elle existe.",
   lockPanel: "Verrouiller le nombre de colonnes",
   unlockPanel: "D\xE9verrouiller les colonnes",
+  lockColumnCount: "Verrouiller {n} colonnes",
+  unlockColumnCount: "Afficher toutes les colonnes",
+  panelAutoWidth: "Ajuster automatiquement la largeur du panneau",
   recents: "R\xE9cents",
   setRecentCount: "Nombre de fichiers r\xE9cents",
   setRecentCountDesc: "Combien de fichiers la colonne \xAB R\xE9cents \xBB affiche.",
@@ -1112,7 +1141,7 @@ var fr = {
   clearRecentsDesc: "Supprime toutes les entr\xE9es de la liste des r\xE9cents.",
   recentsCleared: "Liste des r\xE9cents vid\xE9e",
   clear: "Vider",
-  bookmarks: "Signets",
+  bookmarks: "Acc\xE8s rapide",
   calendar: "Calendrier",
   favorites: "Favoris",
   addFavorite: "Ajouter aux favoris",
@@ -1120,10 +1149,10 @@ var fr = {
   favoriteAdded: "Chemin ajout\xE9 aux favoris",
   favoriteRemoved: "Retir\xE9 des favoris",
   setShowFavorites: "Afficher les favoris",
-  setShowFavoritesDesc: "Affiche vos fichiers et dossiers favoris en haut de la colonne \xAB Signets \xBB.",
+  setShowFavoritesDesc: "Affiche les fichiers et dossiers favoris en haut de l'acc\xE8s rapide.",
   headSpecial: "\xC9l\xE9ments sp\xE9ciaux",
-  setShowBookmarks: "Afficher les signets",
-  setShowBookmarksDesc: "Affiche la ligne \xAB Signets \xBB (n\xE9cessite le plugin Bookmarks).",
+  setShowBookmarks: "Afficher les signets dans l'acc\xE8s rapide",
+  setShowBookmarksDesc: "Inclut dans l'acc\xE8s rapide les \xE9l\xE9ments du plugin Bookmarks int\xE9gr\xE9.",
   setShowCalendar: "Afficher le calendrier",
   setShowCalendarDesc: "Affiche la ligne \xAB Calendrier \xBB : les notes par jour de cr\xE9ation.",
   setSpecialPos: "Position des \xE9l\xE9ments sp\xE9ciaux",
@@ -1136,6 +1165,7 @@ var fr = {
   navUp: "Aller au dossier parent",
   create: "Cr\xE9er",
   more: "Plus d'actions",
+  tools: "Outils",
   preview: "Aper\xE7u",
   close: "Fermer",
   selectedN: "{n} s\xE9lectionn\xE9s",
@@ -1189,6 +1219,8 @@ var it = {
   reveal: "Mostra il file attivo",
   collapse: "Comprimi alla radice",
   search: "Filtra i file\u2026",
+  filterColumns: "Filtra le colonne aperte\u2026",
+  clearFilter: "Cancella filtro",
   sort: "Ordinamento",
   empty: "Vuoto",
   noResults: "Nessun risultato",
@@ -1199,6 +1231,7 @@ var it = {
   rename: "Rinomina",
   delete: "Elimina",
   copy: "Copia",
+  copyAs: "Copia come",
   cut: "Taglia",
   paste: "Incolla",
   itemsPasted: "{n} elementi incollati",
@@ -1278,8 +1311,8 @@ var it = {
   colorPink: "Rosa",
   viewAsList: "Vista a elenco",
   viewAsGrid: "Vista a icone",
-  pin: "Fissa in alto",
-  unpin: "Rimuovi dai fissati",
+  pin: "Fissa in questa cartella",
+  unpin: "Rimuovi da questa cartella",
   newCanvas: "Nuova tela",
   copyWikiLink: "Copia il collegamento wiki",
   copyMdLink: "Copia il collegamento Markdown",
@@ -1293,6 +1326,9 @@ var it = {
   setFolderNoteDesc: "Selezionando una cartella si apre anche la nota con lo stesso nome al suo interno, se esiste.",
   lockPanel: "Blocca il numero di colonne",
   unlockPanel: "Sblocca le colonne",
+  lockColumnCount: "Blocca {n} colonne",
+  unlockColumnCount: "Mostra tutte le colonne",
+  panelAutoWidth: "Adatta automaticamente la larghezza del pannello",
   recents: "Recenti",
   setRecentCount: "Numero di file recenti",
   setRecentCountDesc: "Quanti file mostra la colonna \xABRecenti\xBB.",
@@ -1309,7 +1345,7 @@ var it = {
   clearRecentsDesc: "Rimuove tutte le voci dall'elenco dei recenti.",
   recentsCleared: "Elenco dei recenti svuotato",
   clear: "Svuota",
-  bookmarks: "Segnalibri",
+  bookmarks: "Accesso rapido",
   calendar: "Calendario",
   favorites: "Preferiti",
   addFavorite: "Aggiungi ai preferiti",
@@ -1317,10 +1353,10 @@ var it = {
   favoriteAdded: "Percorso aggiunto ai preferiti",
   favoriteRemoved: "Rimosso dai preferiti",
   setShowFavorites: "Mostra i preferiti",
-  setShowFavoritesDesc: "Mostra i file e le cartelle preferiti in cima alla colonna \xABSegnalibri\xBB.",
+  setShowFavoritesDesc: "Mostra i file e le cartelle preferiti in cima ad Accesso rapido.",
   headSpecial: "Elementi speciali",
-  setShowBookmarks: "Mostra i segnalibri",
-  setShowBookmarksDesc: "Mostra la riga \xABSegnalibri\xBB (richiede il plugin Bookmarks).",
+  setShowBookmarks: "Mostra i segnalibri in Accesso rapido",
+  setShowBookmarksDesc: "Include in Accesso rapido gli elementi del plugin Bookmarks integrato.",
   setShowCalendar: "Mostra il calendario",
   setShowCalendarDesc: "Mostra la riga \xABCalendario\xBB: le note per giorno di creazione.",
   setSpecialPos: "Posizione degli elementi speciali",
@@ -1333,6 +1369,7 @@ var it = {
   navUp: "Vai alla cartella superiore",
   create: "Crea",
   more: "Altre azioni",
+  tools: "Strumenti",
   preview: "Anteprima",
   close: "Chiudi",
   selectedN: "{n} selezionati",
@@ -1386,6 +1423,8 @@ var de = {
   reveal: "Aktive Datei anzeigen",
   collapse: "Zur Wurzel einklappen",
   search: "Dateien filtern\u2026",
+  filterColumns: "Offene Spalten filtern\u2026",
+  clearFilter: "Filter l\xF6schen",
   sort: "Sortierung",
   empty: "Leer",
   noResults: "Keine Treffer",
@@ -1396,6 +1435,7 @@ var de = {
   rename: "Umbenennen",
   delete: "L\xF6schen",
   copy: "Kopieren",
+  copyAs: "Kopieren als",
   cut: "Ausschneiden",
   paste: "Einf\xFCgen",
   itemsPasted: "{n} Elemente eingef\xFCgt",
@@ -1475,8 +1515,8 @@ var de = {
   colorPink: "Rosa",
   viewAsList: "Als Liste anzeigen",
   viewAsGrid: "Als Symbole anzeigen",
-  pin: "Oben anheften",
-  unpin: "L\xF6sen",
+  pin: "In diesem Ordner anheften",
+  unpin: "Aus diesem Ordner l\xF6sen",
   newCanvas: "Neues Canvas",
   copyWikiLink: "Wikilink kopieren",
   copyMdLink: "Markdown-Link kopieren",
@@ -1490,6 +1530,9 @@ var de = {
   setFolderNoteDesc: "Beim Ausw\xE4hlen eines Ordners wird auch die gleichnamige Notiz darin ge\xF6ffnet, sofern vorhanden.",
   lockPanel: "Spaltenanzahl feststellen",
   unlockPanel: "Spalten freigeben",
+  lockColumnCount: "{n} Spalten fixieren",
+  unlockColumnCount: "Alle Spalten anzeigen",
+  panelAutoWidth: "Panelbreite automatisch anpassen",
   recents: "Zuletzt verwendet",
   setRecentCount: "Anzahl zuletzt verwendeter Dateien",
   setRecentCountDesc: "Wie viele Dateien die Spalte \u201EZuletzt verwendet\u201C zeigt.",
@@ -1506,7 +1549,7 @@ var de = {
   clearRecentsDesc: "Entfernt alle Eintr\xE4ge aus der Liste der zuletzt verwendeten Dateien.",
   recentsCleared: "Liste geleert",
   clear: "Leeren",
-  bookmarks: "Lesezeichen",
+  bookmarks: "Schnellzugriff",
   calendar: "Kalender",
   favorites: "Favoriten",
   addFavorite: "Zu Favoriten hinzuf\xFCgen",
@@ -1514,10 +1557,10 @@ var de = {
   favoriteAdded: "Pfad zu den Favoriten hinzugef\xFCgt",
   favoriteRemoved: "Aus den Favoriten entfernt",
   setShowFavorites: "Favoriten anzeigen",
-  setShowFavoritesDesc: "Zeigt deine gespeicherten Lieblingsdateien und -ordner oben in der Spalte \u201ELesezeichen\u201C.",
+  setShowFavoritesDesc: "Zeigt gespeicherte Lieblingsdateien und -ordner oben im Schnellzugriff.",
   headSpecial: "Besondere Eintr\xE4ge",
-  setShowBookmarks: "Lesezeichen anzeigen",
-  setShowBookmarksDesc: "Zeigt die Zeile \u201ELesezeichen\u201C (ben\xF6tigt das Bookmarks-Plugin).",
+  setShowBookmarks: "Lesezeichen im Schnellzugriff",
+  setShowBookmarksDesc: "Nimmt Eintr\xE4ge des integrierten Bookmarks-Plugins in den Schnellzugriff auf.",
   setShowCalendar: "Kalender anzeigen",
   setShowCalendarDesc: "Zeigt die Zeile \u201EKalender\u201C: Notizen nach Erstellungstag.",
   setSpecialPos: "Position der besonderen Eintr\xE4ge",
@@ -1530,6 +1573,7 @@ var de = {
   navUp: "Zum \xFCbergeordneten Ordner",
   create: "Erstellen",
   more: "Weitere Aktionen",
+  tools: "Werkzeuge",
   preview: "Vorschau",
   close: "Schlie\xDFen",
   selectedN: "{n} ausgew\xE4hlt",
@@ -1583,6 +1627,8 @@ var ptBR = {
   reveal: "Mostrar o arquivo ativo",
   collapse: "Recolher at\xE9 a raiz",
   search: "Filtrar arquivos\u2026",
+  filterColumns: "Filtrar colunas abertas\u2026",
+  clearFilter: "Limpar filtro",
   sort: "Ordena\xE7\xE3o",
   empty: "Vazio",
   noResults: "Nenhum resultado",
@@ -1593,6 +1639,7 @@ var ptBR = {
   rename: "Renomear",
   delete: "Excluir",
   copy: "Copiar",
+  copyAs: "Copiar como",
   cut: "Recortar",
   paste: "Colar",
   itemsPasted: "{n} itens colados",
@@ -1672,8 +1719,8 @@ var ptBR = {
   colorPink: "Rosa",
   viewAsList: "Ver como lista",
   viewAsGrid: "Ver como \xEDcones",
-  pin: "Fixar no topo",
-  unpin: "Desafixar",
+  pin: "Fixar nesta pasta",
+  unpin: "Desafixar desta pasta",
   newCanvas: "Novo canvas",
   copyWikiLink: "Copiar link wiki",
   copyMdLink: "Copiar link Markdown",
@@ -1687,6 +1734,9 @@ var ptBR = {
   setFolderNoteDesc: "Selecionar uma pasta tamb\xE9m abre a nota de mesmo nome dentro dela, quando existe.",
   lockPanel: "Travar o n\xFAmero de colunas",
   unlockPanel: "Destravar as colunas",
+  lockColumnCount: "Travar {n} colunas",
+  unlockColumnCount: "Mostrar todas as colunas",
+  panelAutoWidth: "Ajustar automaticamente a largura do painel",
   recents: "Recentes",
   setRecentCount: "N\xFAmero de arquivos recentes",
   setRecentCountDesc: "Quantos arquivos a coluna \u201CRecentes\u201D mostra.",
@@ -1703,7 +1753,7 @@ var ptBR = {
   clearRecentsDesc: "Remove todas as entradas da lista de recentes.",
   recentsCleared: "Lista de recentes limpa",
   clear: "Limpar",
-  bookmarks: "Favoritos",
+  bookmarks: "Acesso r\xE1pido",
   calendar: "Calend\xE1rio",
   favorites: "Preferidos",
   addFavorite: "Adicionar aos preferidos",
@@ -1711,10 +1761,10 @@ var ptBR = {
   favoriteAdded: "Caminho adicionado aos preferidos",
   favoriteRemoved: "Removido dos preferidos",
   setShowFavorites: "Mostrar os preferidos",
-  setShowFavoritesDesc: "Mostra seus arquivos e pastas preferidos no topo da coluna \u201CFavoritos\u201D.",
+  setShowFavoritesDesc: "Mostra arquivos e pastas preferidos no topo do Acesso r\xE1pido.",
   headSpecial: "Itens especiais",
-  setShowBookmarks: "Mostrar os favoritos",
-  setShowBookmarksDesc: "Mostra a linha \u201CFavoritos\u201D (precisa do plugin Bookmarks).",
+  setShowBookmarks: "Mostrar favoritos no Acesso r\xE1pido",
+  setShowBookmarksDesc: "Inclui no Acesso r\xE1pido os itens do plugin Bookmarks integrado.",
   setShowCalendar: "Mostrar o calend\xE1rio",
   setShowCalendarDesc: "Mostra a linha \u201CCalend\xE1rio\u201D: notas por dia de cria\xE7\xE3o.",
   setSpecialPos: "Posi\xE7\xE3o dos itens especiais",
@@ -1727,6 +1777,7 @@ var ptBR = {
   navUp: "Ir para a pasta acima",
   create: "Criar",
   more: "Mais a\xE7\xF5es",
+  tools: "Ferramentas",
   preview: "Visualizar",
   close: "Fechar",
   selectedN: "{n} selecionados",
@@ -1780,6 +1831,8 @@ var zh = {
   reveal: "\u5B9A\u4F4D\u5F53\u524D\u6587\u4EF6",
   collapse: "\u6298\u53E0\u5230\u6839\u76EE\u5F55",
   search: "\u7B5B\u9009\u6587\u4EF6\u2026",
+  filterColumns: "\u7B5B\u9009\u5DF2\u6253\u5F00\u7684\u5206\u680F\u2026",
+  clearFilter: "\u6E05\u9664\u7B5B\u9009",
   sort: "\u6392\u5E8F\u65B9\u5F0F",
   empty: "\u7A7A",
   noResults: "\u65E0\u5339\u914D\u7ED3\u679C",
@@ -1790,6 +1843,7 @@ var zh = {
   rename: "\u91CD\u547D\u540D",
   delete: "\u5220\u9664",
   copy: "\u590D\u5236",
+  copyAs: "\u590D\u5236\u4E3A",
   cut: "\u526A\u5207",
   paste: "\u7C98\u8D34",
   itemsPasted: "\u5DF2\u7C98\u8D34 {n} \u4E2A\u9879\u76EE",
@@ -1869,8 +1923,8 @@ var zh = {
   colorPink: "\u7C89\u8272",
   viewAsList: "\u4EE5\u5217\u8868\u663E\u793A",
   viewAsGrid: "\u4EE5\u56FE\u6807\u663E\u793A",
-  pin: "\u7F6E\u9876",
-  unpin: "\u53D6\u6D88\u7F6E\u9876",
+  pin: "\u5728\u6B64\u6587\u4EF6\u5939\u4E2D\u7F6E\u9876",
+  unpin: "\u5728\u6B64\u6587\u4EF6\u5939\u4E2D\u53D6\u6D88\u7F6E\u9876",
   newCanvas: "\u65B0\u5EFA\u767D\u677F",
   copyWikiLink: "\u590D\u5236 Wiki \u94FE\u63A5",
   copyMdLink: "\u590D\u5236 Markdown \u94FE\u63A5",
@@ -1884,6 +1938,9 @@ var zh = {
   setFolderNoteDesc: "\u9009\u4E2D\u6587\u4EF6\u5939\u65F6\uFF0C\u82E5\u5176\u5185\u90E8\u5B58\u5728\u540C\u540D\u7B14\u8BB0\uFF0C\u5219\u4E00\u5E76\u6253\u5F00\u3002",
   lockPanel: "\u9501\u5B9A\u680F\u6570",
   unlockPanel: "\u89E3\u9664\u680F\u6570\u9501\u5B9A",
+  lockColumnCount: "\u9501\u5B9A {n} \u680F",
+  unlockColumnCount: "\u663E\u793A\u6240\u6709\u680F",
+  panelAutoWidth: "\u81EA\u52A8\u8C03\u6574\u9762\u677F\u5BBD\u5EA6",
   recents: "\u6700\u8FD1\u6587\u4EF6",
   setRecentCount: "\u6700\u8FD1\u6587\u4EF6\u6570\u91CF",
   setRecentCountDesc: "\u201C\u6700\u8FD1\u6587\u4EF6\u201D\u680F\u663E\u793A\u591A\u5C11\u4E2A\u6587\u4EF6\u3002",
@@ -1900,7 +1957,7 @@ var zh = {
   clearRecentsDesc: "\u79FB\u9664\u6700\u8FD1\u6587\u4EF6\u5217\u8868\u4E2D\u7684\u5168\u90E8\u8BB0\u5F55\u3002",
   recentsCleared: "\u6700\u8FD1\u6587\u4EF6\u5217\u8868\u5DF2\u6E05\u7A7A",
   clear: "\u6E05\u7A7A",
-  bookmarks: "\u4E66\u7B7E",
+  bookmarks: "\u5FEB\u901F\u8BBF\u95EE",
   calendar: "\u65E5\u5386",
   favorites: "\u6536\u85CF",
   addFavorite: "\u6DFB\u52A0\u5230\u6536\u85CF",
@@ -1908,10 +1965,10 @@ var zh = {
   favoriteAdded: "\u8DEF\u5F84\u5DF2\u6DFB\u52A0\u5230\u6536\u85CF",
   favoriteRemoved: "\u5DF2\u4ECE\u6536\u85CF\u4E2D\u79FB\u9664",
   setShowFavorites: "\u663E\u793A\u6536\u85CF",
-  setShowFavoritesDesc: "\u5728\u201C\u4E66\u7B7E\u201D\u680F\u9876\u90E8\u663E\u793A\u4F60\u6536\u85CF\u7684\u6587\u4EF6\u548C\u6587\u4EF6\u5939\u3002",
+  setShowFavoritesDesc: "\u5728\u5FEB\u901F\u8BBF\u95EE\u9876\u90E8\u663E\u793A\u6536\u85CF\u7684\u6587\u4EF6\u548C\u6587\u4EF6\u5939\u3002",
   headSpecial: "\u7279\u6B8A\u9879\u76EE",
-  setShowBookmarks: "\u663E\u793A\u4E66\u7B7E",
-  setShowBookmarksDesc: "\u663E\u793A\u201C\u4E66\u7B7E\u201D\u4E00\u884C\uFF08\u9700\u8981\u6838\u5FC3\u4E66\u7B7E\u63D2\u4EF6\uFF09\u3002",
+  setShowBookmarks: "\u5728\u5FEB\u901F\u8BBF\u95EE\u4E2D\u663E\u793A\u4E66\u7B7E",
+  setShowBookmarksDesc: "\u5728\u5FEB\u901F\u8BBF\u95EE\u4E2D\u5305\u542B\u6838\u5FC3\u4E66\u7B7E\u63D2\u4EF6\u7684\u9879\u76EE\u3002",
   setShowCalendar: "\u663E\u793A\u65E5\u5386",
   setShowCalendarDesc: "\u663E\u793A\u201C\u65E5\u5386\u201D\u4E00\u884C\uFF1A\u6309\u521B\u5EFA\u65E5\u671F\u5F52\u7C7B\u7684\u7B14\u8BB0\u3002",
   setSpecialPos: "\u7279\u6B8A\u9879\u76EE\u7684\u4F4D\u7F6E",
@@ -1924,6 +1981,7 @@ var zh = {
   navUp: "\u8F6C\u5230\u4E0A\u7EA7\u6587\u4EF6\u5939",
   create: "\u65B0\u5EFA",
   more: "\u66F4\u591A\u64CD\u4F5C",
+  tools: "\u5DE5\u5177",
   preview: "\u9884\u89C8",
   close: "\u5173\u95ED",
   selectedN: "\u5DF2\u9009\u62E9 {n} \u9879",
@@ -1977,6 +2035,8 @@ var ja = {
   reveal: "\u30A2\u30AF\u30C6\u30A3\u30D6\u306A\u30D5\u30A1\u30A4\u30EB\u3092\u8868\u793A",
   collapse: "\u30EB\u30FC\u30C8\u307E\u3067\u6298\u308A\u305F\u305F\u3080",
   search: "\u30D5\u30A1\u30A4\u30EB\u3092\u7D5E\u308A\u8FBC\u3080\u2026",
+  filterColumns: "\u958B\u3044\u3066\u3044\u308B\u30AB\u30E9\u30E0\u3092\u7D5E\u308A\u8FBC\u3080\u2026",
+  clearFilter: "\u30D5\u30A3\u30EB\u30BF\u30FC\u3092\u89E3\u9664",
   sort: "\u4E26\u3073\u66FF\u3048",
   empty: "\u7A7A",
   noResults: "\u8A72\u5F53\u306A\u3057",
@@ -1987,6 +2047,7 @@ var ja = {
   rename: "\u540D\u524D\u3092\u5909\u66F4",
   delete: "\u524A\u9664",
   copy: "\u30B3\u30D4\u30FC",
+  copyAs: "\u5F62\u5F0F\u3092\u9078\u3093\u3067\u30B3\u30D4\u30FC",
   cut: "\u5207\u308A\u53D6\u308A",
   paste: "\u8CBC\u308A\u4ED8\u3051",
   itemsPasted: "{n}\u4EF6\u3092\u8CBC\u308A\u4ED8\u3051\u307E\u3057\u305F",
@@ -2066,8 +2127,8 @@ var ja = {
   colorPink: "\u30D4\u30F3\u30AF",
   viewAsList: "\u30EA\u30B9\u30C8\u8868\u793A",
   viewAsGrid: "\u30A2\u30A4\u30B3\u30F3\u8868\u793A",
-  pin: "\u5148\u982D\u306B\u30D4\u30F3\u7559\u3081",
-  unpin: "\u30D4\u30F3\u7559\u3081\u3092\u89E3\u9664",
+  pin: "\u3053\u306E\u30D5\u30A9\u30EB\u30C0\u5185\u3067\u5148\u982D\u306B\u56FA\u5B9A",
+  unpin: "\u3053\u306E\u30D5\u30A9\u30EB\u30C0\u5185\u306E\u56FA\u5B9A\u3092\u89E3\u9664",
   newCanvas: "\u65B0\u898F\u30AD\u30E3\u30F3\u30D0\u30B9",
   copyWikiLink: "\u30A6\u30A3\u30AD\u30EA\u30F3\u30AF\u3092\u30B3\u30D4\u30FC",
   copyMdLink: "Markdown \u30EA\u30F3\u30AF\u3092\u30B3\u30D4\u30FC",
@@ -2081,6 +2142,9 @@ var ja = {
   setFolderNoteDesc: "\u30D5\u30A9\u30EB\u30C0\u3092\u9078\u629E\u3057\u305F\u3068\u304D\u3001\u305D\u306E\u4E2D\u306B\u540C\u540D\u306E\u30CE\u30FC\u30C8\u304C\u3042\u308C\u3070\u4E00\u7DD2\u306B\u958B\u304D\u307E\u3059\u3002",
   lockPanel: "\u30AB\u30E9\u30E0\u6570\u3092\u56FA\u5B9A",
   unlockPanel: "\u30AB\u30E9\u30E0\u6570\u306E\u56FA\u5B9A\u3092\u89E3\u9664",
+  lockColumnCount: "{n} \u30AB\u30E9\u30E0\u306B\u56FA\u5B9A",
+  unlockColumnCount: "\u3059\u3079\u3066\u306E\u30AB\u30E9\u30E0\u3092\u8868\u793A",
+  panelAutoWidth: "\u30D1\u30CD\u30EB\u5E45\u3092\u81EA\u52D5\u8ABF\u6574",
   recents: "\u6700\u8FD1\u306E\u30D5\u30A1\u30A4\u30EB",
   setRecentCount: "\u6700\u8FD1\u306E\u30D5\u30A1\u30A4\u30EB\u306E\u4EF6\u6570",
   setRecentCountDesc: "\u300C\u6700\u8FD1\u306E\u30D5\u30A1\u30A4\u30EB\u300D\u5217\u306B\u8868\u793A\u3059\u308B\u4EF6\u6570\u3002",
@@ -2097,7 +2161,7 @@ var ja = {
   clearRecentsDesc: "\u6700\u8FD1\u306E\u30D5\u30A1\u30A4\u30EB\u306E\u4E00\u89A7\u304B\u3089\u3059\u3079\u3066\u306E\u9805\u76EE\u3092\u524A\u9664\u3057\u307E\u3059\u3002",
   recentsCleared: "\u6700\u8FD1\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u6D88\u53BB\u3057\u307E\u3057\u305F",
   clear: "\u6D88\u53BB",
-  bookmarks: "\u30D6\u30C3\u30AF\u30DE\u30FC\u30AF",
+  bookmarks: "\u30AF\u30A4\u30C3\u30AF\u30A2\u30AF\u30BB\u30B9",
   calendar: "\u30AB\u30EC\u30F3\u30C0\u30FC",
   favorites: "\u304A\u6C17\u306B\u5165\u308A",
   addFavorite: "\u304A\u6C17\u306B\u5165\u308A\u306B\u8FFD\u52A0",
@@ -2105,10 +2169,10 @@ var ja = {
   favoriteAdded: "\u30D1\u30B9\u3092\u304A\u6C17\u306B\u5165\u308A\u306B\u8FFD\u52A0\u3057\u307E\u3057\u305F",
   favoriteRemoved: "\u304A\u6C17\u306B\u5165\u308A\u304B\u3089\u524A\u9664\u3057\u307E\u3057\u305F",
   setShowFavorites: "\u304A\u6C17\u306B\u5165\u308A\u3092\u8868\u793A",
-  setShowFavoritesDesc: "\u4FDD\u5B58\u3057\u305F\u304A\u6C17\u306B\u5165\u308A\u306E\u30D5\u30A1\u30A4\u30EB\u3068\u30D5\u30A9\u30EB\u30C0\u3092\u300C\u30D6\u30C3\u30AF\u30DE\u30FC\u30AF\u300D\u5217\u306E\u5148\u982D\u306B\u8868\u793A\u3057\u307E\u3059\u3002",
+  setShowFavoritesDesc: "\u304A\u6C17\u306B\u5165\u308A\u306E\u30D5\u30A1\u30A4\u30EB\u3068\u30D5\u30A9\u30EB\u30C0\u3092\u30AF\u30A4\u30C3\u30AF\u30A2\u30AF\u30BB\u30B9\u306E\u5148\u982D\u306B\u8868\u793A\u3057\u307E\u3059\u3002",
   headSpecial: "\u7279\u5225\u306A\u9805\u76EE",
-  setShowBookmarks: "\u30D6\u30C3\u30AF\u30DE\u30FC\u30AF\u3092\u8868\u793A",
-  setShowBookmarksDesc: "\u300C\u30D6\u30C3\u30AF\u30DE\u30FC\u30AF\u300D\u306E\u884C\u3092\u8868\u793A\u3057\u307E\u3059\uFF08\u30B3\u30A2\u306E\u30D6\u30C3\u30AF\u30DE\u30FC\u30AF\u30D7\u30E9\u30B0\u30A4\u30F3\u304C\u5FC5\u8981\uFF09\u3002",
+  setShowBookmarks: "\u30AF\u30A4\u30C3\u30AF\u30A2\u30AF\u30BB\u30B9\u306B\u30D6\u30C3\u30AF\u30DE\u30FC\u30AF\u3092\u8868\u793A",
+  setShowBookmarksDesc: "\u30B3\u30A2\u306E\u30D6\u30C3\u30AF\u30DE\u30FC\u30AF\u30D7\u30E9\u30B0\u30A4\u30F3\u306E\u9805\u76EE\u3092\u30AF\u30A4\u30C3\u30AF\u30A2\u30AF\u30BB\u30B9\u306B\u542B\u3081\u307E\u3059\u3002",
   setShowCalendar: "\u30AB\u30EC\u30F3\u30C0\u30FC\u3092\u8868\u793A",
   setShowCalendarDesc: "\u300C\u30AB\u30EC\u30F3\u30C0\u30FC\u300D\u306E\u884C\u3092\u8868\u793A\u3057\u307E\u3059: \u4F5C\u6210\u65E5\u3054\u3068\u306E\u30CE\u30FC\u30C8\u3002",
   setSpecialPos: "\u7279\u5225\u306A\u9805\u76EE\u306E\u4F4D\u7F6E",
@@ -2121,6 +2185,7 @@ var ja = {
   navUp: "\u89AA\u30D5\u30A9\u30EB\u30C0\u3078\u79FB\u52D5",
   create: "\u4F5C\u6210",
   more: "\u305D\u306E\u4ED6\u306E\u64CD\u4F5C",
+  tools: "\u30C4\u30FC\u30EB",
   preview: "\u30D7\u30EC\u30D3\u30E5\u30FC",
   close: "\u9589\u3058\u308B",
   selectedN: "{n} \u4EF6\u3092\u9078\u629E\u4E2D",
@@ -2174,6 +2239,8 @@ var ko = {
   reveal: "\uD604\uC7AC \uD30C\uC77C \uD45C\uC2DC",
   collapse: "\uB8E8\uD2B8\uAE4C\uC9C0 \uC811\uAE30",
   search: "\uD30C\uC77C \uD544\uD130\u2026",
+  filterColumns: "\uC5F4\uB9B0 \uCE7C\uB7FC \uD544\uD130\u2026",
+  clearFilter: "\uD544\uD130 \uC9C0\uC6B0\uAE30",
   sort: "\uC815\uB82C \uBC29\uC2DD",
   empty: "\uBE44\uC5B4 \uC788\uC74C",
   noResults: "\uC77C\uCE58\uD558\uB294 \uD56D\uBAA9 \uC5C6\uC74C",
@@ -2184,6 +2251,7 @@ var ko = {
   rename: "\uC774\uB984 \uBC14\uAFB8\uAE30",
   delete: "\uC0AD\uC81C",
   copy: "\uBCF5\uC0AC",
+  copyAs: "\uB2E4\uB978 \uD615\uC2DD\uC73C\uB85C \uBCF5\uC0AC",
   cut: "\uC798\uB77C\uB0B4\uAE30",
   paste: "\uBD99\uC5EC\uB123\uAE30",
   itemsPasted: "{n}\uAC1C \uD56D\uBAA9\uC744 \uBD99\uC5EC\uB123\uC5C8\uC2B5\uB2C8\uB2E4",
@@ -2263,8 +2331,8 @@ var ko = {
   colorPink: "\uBD84\uD64D",
   viewAsList: "\uBAA9\uB85D\uC73C\uB85C \uBCF4\uAE30",
   viewAsGrid: "\uC544\uC774\uCF58\uC73C\uB85C \uBCF4\uAE30",
-  pin: "\uB9E8 \uC704\uC5D0 \uACE0\uC815",
-  unpin: "\uACE0\uC815 \uD574\uC81C",
+  pin: "\uC774 \uD3F4\uB354\uC5D0\uC11C \uB9E8 \uC704\uC5D0 \uACE0\uC815",
+  unpin: "\uC774 \uD3F4\uB354\uC5D0\uC11C \uACE0\uC815 \uD574\uC81C",
   newCanvas: "\uC0C8 \uCE94\uBC84\uC2A4",
   copyWikiLink: "\uC704\uD0A4 \uB9C1\uD06C \uBCF5\uC0AC",
   copyMdLink: "\uB9C8\uD06C\uB2E4\uC6B4 \uB9C1\uD06C \uBCF5\uC0AC",
@@ -2278,6 +2346,9 @@ var ko = {
   setFolderNoteDesc: "\uD3F4\uB354\uB97C \uC120\uD0DD\uD560 \uB54C \uADF8 \uC548\uC5D0 \uAC19\uC740 \uC774\uB984\uC758 \uB178\uD2B8\uAC00 \uC788\uC73C\uBA74 \uD568\uAED8 \uC5FD\uB2C8\uB2E4.",
   lockPanel: "\uCE7C\uB7FC \uAC1C\uC218 \uACE0\uC815",
   unlockPanel: "\uCE7C\uB7FC \uACE0\uC815 \uD574\uC81C",
+  lockColumnCount: "{n}\uAC1C \uCE7C\uB7FC \uACE0\uC815",
+  unlockColumnCount: "\uBAA8\uB4E0 \uCE7C\uB7FC \uD45C\uC2DC",
+  panelAutoWidth: "\uD328\uB110 \uB108\uBE44 \uC790\uB3D9 \uB9DE\uCDA4",
   recents: "\uCD5C\uADFC \uD30C\uC77C",
   setRecentCount: "\uCD5C\uADFC \uD30C\uC77C \uAC1C\uC218",
   setRecentCountDesc: "\u201C\uCD5C\uADFC \uD30C\uC77C\u201D \uCE7C\uB7FC\uC5D0 \uD45C\uC2DC\uD560 \uD30C\uC77C \uC218.",
@@ -2294,7 +2365,7 @@ var ko = {
   clearRecentsDesc: "\uCD5C\uADFC \uD30C\uC77C \uBAA9\uB85D\uC758 \uBAA8\uB4E0 \uD56D\uBAA9\uC744 \uC9C0\uC6C1\uB2C8\uB2E4.",
   recentsCleared: "\uCD5C\uADFC \uD30C\uC77C \uBAA9\uB85D\uC744 \uBE44\uC6E0\uC2B5\uB2C8\uB2E4",
   clear: "\uBE44\uC6B0\uAE30",
-  bookmarks: "\uBD81\uB9C8\uD06C",
+  bookmarks: "\uBE60\uB978 \uC811\uADFC",
   calendar: "\uB2EC\uB825",
   favorites: "\uC990\uACA8\uCC3E\uAE30",
   addFavorite: "\uC990\uACA8\uCC3E\uAE30\uC5D0 \uCD94\uAC00",
@@ -2302,10 +2373,10 @@ var ko = {
   favoriteAdded: "\uACBD\uB85C\uB97C \uC990\uACA8\uCC3E\uAE30\uC5D0 \uCD94\uAC00\uD588\uC2B5\uB2C8\uB2E4",
   favoriteRemoved: "\uC990\uACA8\uCC3E\uAE30\uC5D0\uC11C \uC81C\uAC70\uD588\uC2B5\uB2C8\uB2E4",
   setShowFavorites: "\uC990\uACA8\uCC3E\uAE30 \uD45C\uC2DC",
-  setShowFavoritesDesc: "\uC800\uC7A5\uD55C \uC990\uACA8\uCC3E\uAE30 \uD30C\uC77C\uACFC \uD3F4\uB354\uB97C \u201C\uBD81\uB9C8\uD06C\u201D \uCE7C\uB7FC \uB9E8 \uC704\uC5D0 \uD45C\uC2DC\uD569\uB2C8\uB2E4.",
+  setShowFavoritesDesc: "\uC990\uACA8\uCC3E\uAE30 \uD30C\uC77C\uACFC \uD3F4\uB354\uB97C \uBE60\uB978 \uC811\uADFC \uB9E8 \uC704\uC5D0 \uD45C\uC2DC\uD569\uB2C8\uB2E4.",
   headSpecial: "\uD2B9\uBCC4 \uD56D\uBAA9",
-  setShowBookmarks: "\uBD81\uB9C8\uD06C \uD45C\uC2DC",
-  setShowBookmarksDesc: "\u201C\uBD81\uB9C8\uD06C\u201D \uC904\uC744 \uD45C\uC2DC\uD569\uB2C8\uB2E4 (\uCF54\uC5B4 \uBD81\uB9C8\uD06C \uD50C\uB7EC\uADF8\uC778\uC774 \uD544\uC694\uD569\uB2C8\uB2E4).",
+  setShowBookmarks: "\uBE60\uB978 \uC811\uADFC\uC5D0 \uBD81\uB9C8\uD06C \uD45C\uC2DC",
+  setShowBookmarksDesc: "\uCF54\uC5B4 \uBD81\uB9C8\uD06C \uD50C\uB7EC\uADF8\uC778\uC758 \uD56D\uBAA9\uC744 \uBE60\uB978 \uC811\uADFC\uC5D0 \uD3EC\uD568\uD569\uB2C8\uB2E4.",
   setShowCalendar: "\uB2EC\uB825 \uD45C\uC2DC",
   setShowCalendarDesc: "\u201C\uB2EC\uB825\u201D \uC904\uC744 \uD45C\uC2DC\uD569\uB2C8\uB2E4: \uB9CC\uB4E0 \uB0A0\uC9DC\uBCC4 \uB178\uD2B8.",
   setSpecialPos: "\uD2B9\uBCC4 \uD56D\uBAA9\uC758 \uC704\uCE58",
@@ -2318,6 +2389,7 @@ var ko = {
   navUp: "\uC0C1\uC704 \uD3F4\uB354\uB85C \uC774\uB3D9",
   create: "\uB9CC\uB4E4\uAE30",
   more: "\uB2E4\uB978 \uC791\uC5C5",
+  tools: "\uB3C4\uAD6C",
   preview: "\uBBF8\uB9AC\uBCF4\uAE30",
   close: "\uB2EB\uAE30",
   selectedN: "{n}\uAC1C \uC120\uD0DD\uB428",
@@ -2409,7 +2481,7 @@ var DEFAULT_SETTINGS = {
   autoReveal: false,
   columnWidth: DEFAULT_COLUMN_WIDTH,
   columnWidths: {},
-  autoPanelResize: true,
+  autoPanelResize: false,
   lockColumnWidths: true,
   sortMode: "name-asc",
   excludePatterns: "",
@@ -2438,6 +2510,10 @@ var DEFAULT_SETTINGS = {
   seenAt: {},
   unreadBaseline: 0
 };
+function setPanelAutoResize(settings, enabled) {
+  settings.autoPanelResize = enabled;
+  settings.lockColumnWidths = !enabled;
+}
 var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -2456,7 +2532,12 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
           { name: t("setFoldersFirst"), desc: t("setFoldersFirstDesc"), control: { type: "toggle", key: "foldersFirst" } },
           { name: t("setShowExt"), desc: t("setShowExtDesc"), control: { type: "toggle", key: "showExtensions" } },
           { name: t("setPreview"), desc: t("setPreviewDesc"), control: { type: "toggle", key: "showPreview" } },
-          { name: t("setMdPreview"), desc: t("setMdPreviewDesc"), control: { type: "toggle", key: "showMarkdownPreview" } },
+          {
+            name: t("setMdPreview"),
+            desc: t("setMdPreviewDesc"),
+            visible: () => this.plugin.settings.showPreview,
+            control: { type: "toggle", key: "showMarkdownPreview" }
+          },
           { name: t("setShowUnread"), desc: t("setShowUnreadDesc"), control: { type: "toggle", key: "showUnreadMarkers" } }
         ]
       },
@@ -2496,7 +2577,6 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
         type: "group",
         heading: t("headColumns"),
         items: [
-          { name: t("lockColumnWidths"), desc: t("lockColumnWidthsDesc"), control: { type: "toggle", key: "lockColumnWidths" } },
           { name: t("setAutoPanel"), desc: t("setAutoPanelDesc"), control: { type: "toggle", key: "autoPanelResize" } },
           {
             name: t("setColWidth"),
@@ -2519,17 +2599,29 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
           {
             name: t("setRecentCount"),
             desc: t("setRecentCountDesc"),
+            visible: () => this.plugin.settings.showRecents,
             control: { type: "number", key: "recentFilesCount", min: MIN_RECENT_FILES, max: MAX_RECENT_FILES, step: 1 }
           },
-          { name: t("clearRecents"), desc: t("clearRecentsDesc"), action: () => void this.clearRecents() },
+          {
+            name: t("clearRecents"),
+            desc: t("clearRecentsDesc"),
+            visible: () => this.plugin.settings.showRecents,
+            action: () => void this.clearRecents()
+          },
           { name: t("setShowFavorites"), desc: t("setShowFavoritesDesc"), control: { type: "toggle", key: "showFavorites" } },
           { name: t("setShowBookmarks"), desc: t("setShowBookmarksDesc"), control: { type: "toggle", key: "showBookmarks" } },
           { name: t("setShowCalendar"), desc: t("setShowCalendarDesc"), control: { type: "toggle", key: "showCalendar" } },
           { name: t("setShowStorage"), desc: t("setShowStorageDesc"), control: { type: "toggle", key: "showStorage" } },
-          { name: t("setStorageExclude"), desc: t("setStorageExcludeDesc"), control: { type: "text", key: "storageExcluded" } },
+          {
+            name: t("setStorageExclude"),
+            desc: t("setStorageExcludeDesc"),
+            visible: () => this.plugin.settings.showStorage,
+            control: { type: "text", key: "storageExcluded" }
+          },
           {
             name: t("setStorageRings"),
             desc: t("setStorageRingsDesc"),
+            visible: () => this.plugin.settings.showStorage,
             control: { type: "slider", key: "storageRingCount", min: MIN_STORAGE_RINGS, max: MAX_STORAGE_RINGS, step: 1 }
           }
         ]
@@ -2580,7 +2672,7 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
   }
   /** Self-contained override — avoids calling the 1.13-only base implementation. */
   async setControlValue(key, value) {
-    var _a, _b;
+    var _a, _b, _c;
     if (key === "mobileUiScale" || key === "mobileIconSize") {
       const s = this.plugin.settings;
       const normalized = normalizeMobileSettings({ ...s, [key]: value });
@@ -2593,9 +2685,16 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
     if (key === "recentFilesCount" && typeof value === "number") {
       value = Math.max(MIN_RECENT_FILES, Math.min(MAX_RECENT_FILES, Math.round(value)));
     }
-    this.plugin.settings[key] = value;
+    if (key === "autoPanelResize" && typeof value === "boolean") {
+      setPanelAutoResize(this.plugin.settings, value);
+    } else {
+      this.plugin.settings[key] = value;
+    }
     await this.plugin.saveSettings();
     (_b = this.plugin.getView()) == null ? void 0 : _b.render();
+    if ((0, import_obsidian2.requireApiVersion)("1.13.0") && (key === "showPreview" || key === "showRecents" || key === "showStorage")) {
+      (_c = this.refreshDomState) == null ? void 0 : _c.call(this);
+    }
   }
   /** Закрытие вкладки не должно ждать дебаунса — дописываем сразу. */
   hide() {
@@ -2603,6 +2702,9 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
     (_a = this.saveTextInput) == null ? void 0 : _a.run();
   }
   display() {
+    this.renderLegacySettings();
+  }
+  renderLegacySettings() {
     const { containerEl } = this;
     containerEl.empty();
     const s = this.plugin.settings;
@@ -2610,6 +2712,10 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
       var _a;
       await this.plugin.saveSettings();
       (_a = this.plugin.getView()) == null ? void 0 : _a.render();
+    };
+    const saveAndRedisplay = async () => {
+      await save();
+      this.renderLegacySettings();
     };
     const saveTextInput = (0, import_obsidian2.debounce)(() => void save(), TEXT_INPUT_SAVE_DELAY_MS, true);
     this.saveTextInput = saveTextInput;
@@ -2624,12 +2730,14 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
     }));
     new import_obsidian2.Setting(containerEl).setName(t("setPreview")).setDesc(t("setPreviewDesc")).addToggle((tg) => tg.setValue(s.showPreview).onChange(async (v) => {
       s.showPreview = v;
-      await save();
+      await saveAndRedisplay();
     }));
-    new import_obsidian2.Setting(containerEl).setName(t("setMdPreview")).setDesc(t("setMdPreviewDesc")).addToggle((tg) => tg.setValue(s.showMarkdownPreview).onChange(async (v) => {
-      s.showMarkdownPreview = v;
-      await save();
-    }));
+    if (s.showPreview) {
+      new import_obsidian2.Setting(containerEl).setName(t("setMdPreview")).setDesc(t("setMdPreviewDesc")).addToggle((tg) => tg.setValue(s.showMarkdownPreview).onChange(async (v) => {
+        s.showMarkdownPreview = v;
+        await save();
+      }));
+    }
     new import_obsidian2.Setting(containerEl).setName(t("setShowUnread")).setDesc(t("setShowUnreadDesc")).addToggle((tg) => tg.setValue(s.showUnreadMarkers).onChange(async (v) => {
       s.showUnreadMarkers = v;
       await save();
@@ -2660,12 +2768,8 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
       saveTextInput();
     }));
     new import_obsidian2.Setting(containerEl).setName(t("headColumns")).setHeading();
-    new import_obsidian2.Setting(containerEl).setName(t("lockColumnWidths")).setDesc(t("lockColumnWidthsDesc")).addToggle((tg) => tg.setValue(s.lockColumnWidths).onChange(async (v) => {
-      s.lockColumnWidths = v;
-      await save();
-    }));
     new import_obsidian2.Setting(containerEl).setName(t("setAutoPanel")).setDesc(t("setAutoPanelDesc")).addToggle((tg) => tg.setValue(s.autoPanelResize).onChange(async (v) => {
-      s.autoPanelResize = v;
+      setPanelAutoResize(s, v);
       await save();
     }));
     new import_obsidian2.Setting(containerEl).setName(t("setColWidth")).setDesc(t("setColWidthDesc")).addSlider((sl) => sl.setLimits(MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH, 10).setValue(s.columnWidth).onChange(async (v) => {
@@ -2680,18 +2784,20 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
     }));
     new import_obsidian2.Setting(containerEl).setName(t("setShowRecents")).setDesc(t("setShowRecentsDesc")).addToggle((tg) => tg.setValue(s.showRecents).onChange(async (v) => {
       s.showRecents = v;
-      await save();
+      await saveAndRedisplay();
     }));
-    new import_obsidian2.Setting(containerEl).setName(t("setRecentCount")).setDesc(t("setRecentCountDesc")).addText((txt) => {
-      txt.inputEl.type = "number";
-      txt.setValue(String(s.recentFilesCount)).onChange(async (v) => {
-        const n = Number(v);
-        if (!Number.isFinite(n)) return;
-        s.recentFilesCount = Math.max(MIN_RECENT_FILES, Math.min(MAX_RECENT_FILES, Math.round(n)));
-        await save();
+    if (s.showRecents) {
+      new import_obsidian2.Setting(containerEl).setName(t("setRecentCount")).setDesc(t("setRecentCountDesc")).addText((txt) => {
+        txt.inputEl.type = "number";
+        txt.setValue(String(s.recentFilesCount)).onChange(async (v) => {
+          const n = Number(v);
+          if (!Number.isFinite(n)) return;
+          s.recentFilesCount = Math.max(MIN_RECENT_FILES, Math.min(MAX_RECENT_FILES, Math.round(n)));
+          await save();
+        });
       });
-    });
-    new import_obsidian2.Setting(containerEl).setName(t("clearRecents")).setDesc(t("clearRecentsDesc")).addButton((b) => b.setButtonText(t("clear")).onClick(() => void this.clearRecents()));
+      new import_obsidian2.Setting(containerEl).setName(t("clearRecents")).setDesc(t("clearRecentsDesc")).addButton((b) => b.setButtonText(t("clear")).onClick(() => void this.clearRecents()));
+    }
     new import_obsidian2.Setting(containerEl).setName(t("setShowFavorites")).setDesc(t("setShowFavoritesDesc")).addToggle((tg) => tg.setValue(s.showFavorites).onChange(async (v) => {
       s.showFavorites = v;
       await save();
@@ -2706,16 +2812,18 @@ var ColumnExplorerSettingTab = class extends import_obsidian2.PluginSettingTab {
     }));
     new import_obsidian2.Setting(containerEl).setName(t("setShowStorage")).setDesc(t("setShowStorageDesc")).addToggle((tg) => tg.setValue(s.showStorage).onChange(async (v) => {
       s.showStorage = v;
-      await save();
+      await saveAndRedisplay();
     }));
-    new import_obsidian2.Setting(containerEl).setName(t("setStorageExclude")).setDesc(t("setStorageExcludeDesc")).addText((txt) => txt.setValue(s.storageExcluded).onChange((v) => {
-      s.storageExcluded = v;
-      saveTextInput();
-    }));
-    new import_obsidian2.Setting(containerEl).setName(t("setStorageRings")).setDesc(t("setStorageRingsDesc")).addSlider((sl) => sl.setLimits(MIN_STORAGE_RINGS, MAX_STORAGE_RINGS, 1).setValue(s.storageRingCount).onChange(async (v) => {
-      s.storageRingCount = v;
-      await save();
-    }));
+    if (s.showStorage) {
+      new import_obsidian2.Setting(containerEl).setName(t("setStorageExclude")).setDesc(t("setStorageExcludeDesc")).addText((txt) => txt.setValue(s.storageExcluded).onChange((v) => {
+        s.storageExcluded = v;
+        saveTextInput();
+      }));
+      new import_obsidian2.Setting(containerEl).setName(t("setStorageRings")).setDesc(t("setStorageRingsDesc")).addSlider((sl) => sl.setLimits(MIN_STORAGE_RINGS, MAX_STORAGE_RINGS, 1).setValue(s.storageRingCount).onChange(async (v) => {
+        s.storageRingCount = v;
+        await save();
+      }));
+    }
     new import_obsidian2.Setting(containerEl).setName(t("headMobile")).setHeading();
     const saveMobile = async () => {
       var _a;
@@ -3094,9 +3202,10 @@ var QuickLookModal = class extends import_obsidian6.Modal {
   }
 };
 var FolderSuggestModal = class extends import_obsidian6.FuzzySuggestModal {
-  constructor(app, onChoose) {
+  constructor(app, onChoose, sourcePaths = []) {
     super(app);
     this.onChoose = onChoose;
+    this.sourcePaths = sourcePaths;
     this.setPlaceholder(t("moveToPlaceholder"));
   }
   getItems() {
@@ -3110,7 +3219,27 @@ var FolderSuggestModal = class extends import_obsidian6.FuzzySuggestModal {
       }
     };
     walk(this.app.vault.getRoot());
-    return folders;
+    const sources = this.sourcePaths.map((path) => this.app.vault.getAbstractFileByPath(path)).filter((source) => source !== null);
+    const isInsideSourceFolder = (target, source) => {
+      let current = target;
+      while (current) {
+        if (current.path === source.path) return true;
+        current = current.parent;
+      }
+      return false;
+    };
+    return folders.filter((target) => {
+      if (sources.some((source) => source instanceof import_obsidian6.TFolder && isInsideSourceFolder(target, source))) {
+        return false;
+      }
+      const allSourcesResolved = sources.length > 0 && sources.length === this.sourcePaths.length;
+      return !allSourcesResolved || sources.some((source) => {
+        var _a;
+        if (((_a = source.parent) == null ? void 0 : _a.path) === target.path) return false;
+        const destination = (target.isRoot() ? "" : target.path + "/") + source.name;
+        return !this.app.vault.getAbstractFileByPath(destination);
+      });
+    });
   }
   getItemText(folder) {
     return folder.isRoot() ? "/" : folder.path;
@@ -3172,6 +3301,17 @@ function colorMenuTitle(colorKey, label) {
     if (colorKey) text.style.color = `var(--color-${colorKey})`;
   });
 }
+function addSubmenu(menu, title, icon, fillItems) {
+  menu.addItem((item) => {
+    item.setTitle(title).setIcon(icon);
+    const withSubmenu = item;
+    if (typeof withSubmenu.setSubmenu === "function") {
+      fillItems(withSubmenu.setSubmenu());
+    } else {
+      fillItems(menu);
+    }
+  });
+}
 function addFolderColorMenu(view, menu, folder) {
   const current = view.plugin.settings.folderColors[folder.path];
   const capitalized = (k) => "color" + k.charAt(0).toUpperCase() + k.slice(1);
@@ -3195,15 +3335,7 @@ function addFolderColorMenu(view, menu, folder) {
       view.render();
     }));
   };
-  menu.addItem((item) => {
-    item.setTitle(t("folderColor")).setIcon("palette");
-    const withSubmenu = item;
-    if (typeof withSubmenu.setSubmenu === "function") {
-      fillColorItems(withSubmenu.setSubmenu());
-    } else {
-      fillColorItems(menu);
-    }
-  });
+  addSubmenu(menu, t("folderColor"), "palette", fillColorItems);
 }
 function showFileMenu(view, e, f, depth) {
   const app = view.app;
@@ -3215,7 +3347,7 @@ function showFileMenu(view, e, f, depth) {
     menu.addItem((i) => i.setTitle(t("cut")).setIcon("scissors").onClick(() => view.copyItems(paths, true)));
     menu.addItem((i) => i.setTitle(t("moveTo")).setIcon("folder-input").onClick(() => new FolderSuggestModal(app, (target) => {
       void moveFiles(app, paths, target).then(() => view.clearMulti());
-    }).open()));
+    }, paths).open()));
     menu.addItem((i) => i.setTitle(t("duplicateN", { n: paths.length })).setIcon("copy").onClick(async () => {
       for (const p of paths) {
         const file = app.vault.getAbstractFileByPath(p);
@@ -3223,6 +3355,7 @@ function showFileMenu(view, e, f, depth) {
         else if (file instanceof import_obsidian7.TFolder) await duplicateFolder(app, file);
       }
     }));
+    menu.addSeparator();
     menu.addItem((i) => i.setTitle(t("deleteN", { n: paths.length })).setIcon("trash").onClick(() => view.deleteMany(paths)));
     menu.showAtMouseEvent(e);
     return;
@@ -3264,24 +3397,26 @@ function showFileMenu(view, e, f, depth) {
   }));
   const isFav = view.isFavorite(f.path);
   menu.addItem((i) => i.setTitle(isFav ? t("removeFavorite") : t("addFavorite")).setIcon(isFav ? "star-off" : "star").onClick(() => view.toggleFavorite(f.path)));
-  menu.addItem((i) => i.setTitle(t("moveTo")).setIcon("folder-input").onClick(() => new FolderSuggestModal(app, (target) => void moveFiles(app, [f.path], target)).open()));
+  menu.addItem((i) => i.setTitle(t("moveTo")).setIcon("folder-input").onClick(() => new FolderSuggestModal(app, (target) => void moveFiles(app, [f.path], target), [f.path]).open()));
   menu.addItem((i) => i.setTitle(t("rename")).setIcon("pencil").onClick(() => view.startRename(f)));
-  menu.addItem((i) => i.setTitle(t("delete")).setIcon("trash").onClick(() => view.deleteMany([f.path])));
-  menu.addSeparator();
-  menu.addItem((i) => i.setTitle(t("copyPath")).setIcon("clipboard-copy").onClick(() => copyToClipboard(f.path, t("pathCopied"))));
-  const adapter = app.vault.adapter;
-  if (adapter instanceof import_obsidian7.FileSystemAdapter) {
-    menu.addItem((i) => i.setTitle(t("copyFullPath")).setIcon("terminal").onClick(() => copyToClipboard(shellEscapePath(adapter.getBasePath() + "/" + f.path), t("pathCopied"))));
-  }
-  if (f instanceof import_obsidian7.TFile) {
-    menu.addItem((i) => i.setTitle(t("copyWikiLink")).setIcon("brackets").onClick(() => copyToClipboard("[[" + app.metadataCache.fileToLinktext(f, "", false) + "]]", t("linkCopied"))));
-    menu.addItem((i) => i.setTitle(t("copyMdLink")).setIcon("link").onClick(() => copyToClipboard(app.fileManager.generateMarkdownLink(f, ""), t("linkCopied"))));
-    menu.addItem((i) => i.setTitle(t("copyObsidianUrl")).setIcon("external-link").onClick(() => {
-      const url = "obsidian://open?vault=" + encodeURIComponent(app.vault.getName()) + "&file=" + encodeURIComponent(f.path);
-      copyToClipboard(url, t("linkCopied"));
-    }));
-  }
+  addSubmenu(menu, t("copyAs"), "copy", (target) => {
+    target.addItem((i) => i.setTitle(t("copyPath")).setIcon("clipboard-copy").onClick(() => copyToClipboard(f.path, t("pathCopied"))));
+    const adapter = app.vault.adapter;
+    if (adapter instanceof import_obsidian7.FileSystemAdapter) {
+      target.addItem((i) => i.setTitle(t("copyFullPath")).setIcon("terminal").onClick(() => copyToClipboard(shellEscapePath(adapter.getBasePath() + "/" + f.path), t("pathCopied"))));
+    }
+    if (f instanceof import_obsidian7.TFile) {
+      target.addItem((i) => i.setTitle(t("copyWikiLink")).setIcon("brackets").onClick(() => copyToClipboard("[[" + app.metadataCache.fileToLinktext(f, "", false) + "]]", t("linkCopied"))));
+      target.addItem((i) => i.setTitle(t("copyMdLink")).setIcon("link").onClick(() => copyToClipboard(app.fileManager.generateMarkdownLink(f, ""), t("linkCopied"))));
+      target.addItem((i) => i.setTitle(t("copyObsidianUrl")).setIcon("external-link").onClick(() => {
+        const url = "obsidian://open?vault=" + encodeURIComponent(app.vault.getName()) + "&file=" + encodeURIComponent(f.path);
+        copyToClipboard(url, t("linkCopied"));
+      }));
+    }
+  });
   app.workspace.trigger("file-menu", menu, f, "file-explorer-context-menu", view.leaf);
+  menu.addSeparator();
+  menu.addItem((i) => i.setTitle(t("delete")).setIcon("trash").onClick(() => view.deleteMany([f.path])));
   menu.showAtMouseEvent(e);
 }
 function addFolderIconItems(view, menu, folder) {
@@ -3445,7 +3580,7 @@ function buildActionBar(view, container) {
     const paths = [...view.multiSel];
     new FolderSuggestModal(view.app, (target) => {
       void moveFiles(view.app, paths, target).then(() => view.exitMobileSelection());
-    }).open();
+    }, paths).open();
   });
   action("copy", t("duplicate"), () => {
     view.duplicateSelected(view.multiSelDepth);
@@ -3721,22 +3856,27 @@ function renderColumn(view, container, folder, depth) {
     showColumnHeaderMenu(view, e, folder);
   });
   const viewMode = (_b = view.plugin.settings.columnViewModes[folder.path]) != null ? _b : "list";
-  const toggle = header.createDiv({
+  const toggle = header.createEl("button", {
     cls: "clickable-icon column-explorer-view-toggle",
     attr: {
       "aria-label": viewMode === "list" ? t("viewAsGrid") : t("viewAsList"),
-      role: "button",
+      type: "button",
       "aria-pressed": String(viewMode === "grid")
     }
   });
   (0, import_obsidian10.setIcon)(toggle, viewMode === "list" ? "layout-grid" : "list");
   toggle.addEventListener("click", () => {
+    var _a2;
+    const restoreFocus = toggle.ownerDocument.activeElement === toggle;
     view.plugin.settings.columnViewModes = {
       ...view.plugin.settings.columnViewModes,
       [folder.path]: viewMode === "list" ? "grid" : "list"
     };
     void view.plugin.saveSettings();
     view.render();
+    if (restoreFocus) (_a2 = container.querySelector(
+      `.column-explorer-column[data-folder-path="${CSS.escape(folder.path)}"] .column-explorer-view-toggle`
+    )) == null ? void 0 : _a2.focus();
   });
   const list = col.createDiv({ cls: "column-explorer-list", attr: { role: "listbox" } });
   if (viewMode === "grid") list.addClass("is-grid");
@@ -3828,30 +3968,50 @@ function renderColumnList(view, list, folder, depth) {
   }
   const isGrid = ((_c = view.plugin.settings.columnViewModes[folder.path]) != null ? _c : "list") === "grid";
   const selectedIdx = children.findIndex((c) => c.path === view.selection[depth]);
-  let rendered = Math.min(children.length, Math.max(RENDER_CHUNK, selectedIdx + 1));
-  const frag = createFragment();
-  for (let i = 0; i < rendered; i++) frag.appendChild(buildItem(view, children[i], depth, isGrid));
-  list.appendChild(frag);
-  if (rendered >= children.length) {
-    appendSpecialsBottom();
-    return;
-  }
-  const sentinel = list.createDiv({ cls: "column-explorer-load-more" });
+  let start = selectedIdx < 0 ? 0 : Math.floor(selectedIdx / RENDER_CHUNK) * RENDER_CHUNK;
+  let end = Math.min(children.length, start + RENDER_CHUNK);
+  const before = list.createDiv({ cls: "column-explorer-load-more" });
+  const appendRange = (from, to, anchor) => {
+    const fragment = createFragment();
+    for (let i = from; i < to; i++) fragment.appendChild(buildItem(view, children[i], depth, isGrid));
+    list.insertBefore(fragment, anchor);
+  };
+  appendRange(start, end, null);
+  const after = list.createDiv({ cls: "column-explorer-load-more" });
   appendSpecialsBottom();
+  if (start === 0) before.remove();
+  if (end === children.length) after.remove();
+  if (start === 0 && end === children.length) return;
   const observer = new IntersectionObserver((entries) => {
-    if (!entries.some((entry) => entry.isIntersecting)) return;
-    const next = Math.min(children.length, rendered + RENDER_CHUNK);
-    const batch = createFragment();
-    for (let i = rendered; i < next; i++) batch.appendChild(buildItem(view, children[i], depth, isGrid));
-    rendered = next;
-    list.insertBefore(batch, sentinel);
-    if (rendered >= children.length) {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      if (entry.target === before && start > 0) {
+        const oldHeight = list.scrollHeight;
+        const nextStart = Math.max(0, start - RENDER_CHUNK);
+        appendRange(nextStart, start, before.nextSibling);
+        start = nextStart;
+        list.scrollTop += list.scrollHeight - oldHeight;
+        if (start === 0) {
+          observer.unobserve(before);
+          before.remove();
+        }
+      } else if (entry.target === after && end < children.length) {
+        const nextEnd = Math.min(children.length, end + RENDER_CHUNK);
+        appendRange(end, nextEnd, after);
+        end = nextEnd;
+        if (end === children.length) {
+          observer.unobserve(after);
+          after.remove();
+        }
+      }
+    }
+    if (start === 0 && end === children.length) {
       observer.disconnect();
       listObservers.delete(list);
-      sentinel.remove();
     }
   }, { root: list });
-  observer.observe(sentinel);
+  if (start > 0) observer.observe(before);
+  if (end < children.length) observer.observe(after);
   listObservers.set(list, observer);
 }
 function buildItem(view, f, depth, isGrid = false) {
@@ -3938,8 +4098,12 @@ function buildSpecialItems(view) {
   const items = [];
   if (view.specialKind(RECENTS_PATH)) items.push(buildSpecialItem(view, RECENTS_PATH, "history", t("recents")));
   if (view.specialKind(BOOKMARKS_PATH)) items.push(buildSpecialItem(view, BOOKMARKS_PATH, "bookmark", t("bookmarks")));
+  if (view.specialKind(CALENDAR_PATH) || view.specialKind(STORAGE_PATH)) {
+    items.push(createDiv({ cls: "column-explorer-section-label", text: t("tools") }));
+  }
   if (view.specialKind(CALENDAR_PATH)) items.push(buildSpecialItem(view, CALENDAR_PATH, "calendar-days", t("calendar")));
   if (view.specialKind(STORAGE_PATH)) items.push(buildSpecialItem(view, STORAGE_PATH, "pie-chart", t("diskUsage")));
+  if (items.length > 0) items.push(createDiv({ cls: "column-explorer-section-divider" }));
   return items;
 }
 function buildSpecialItem(view, path, icon, label) {
@@ -3975,13 +4139,21 @@ function renderFileListColumn(view, container, title, files, sentinelPath, depth
     if (files.length > 0) list.createDiv({ cls: "column-explorer-section-divider" });
   }
   if (favorites.length === 0 && files.length === 0) {
-    list.createDiv({ cls: "column-explorer-empty", text: t("empty") });
+    list.createDiv({ cls: "column-explorer-empty", text: view.hasFilter() ? t("noResults") : t("empty") });
   } else {
     for (const f of files) list.appendChild(buildItem(view, f, depth));
   }
   list.addEventListener("click", (e) => {
     const hit = itemFromEvent(e);
     const f = hit ? view.app.vault.getAbstractFileByPath(hit.path) : null;
+    if (f && (e.ctrlKey || e.metaKey)) {
+      view.toggleMulti(f, depth);
+      return;
+    }
+    if (f && e.shiftKey) {
+      view.rangeMulti(f, depth, [...favorites, ...files]);
+      return;
+    }
     if (f instanceof import_obsidian10.TFolder) {
       view.clearMulti();
       view.revealFile(f);
@@ -4030,18 +4202,24 @@ function renderCalendarColumn(view, container) {
   header.createSpan({ cls: "column-explorer-column-title", text: t("calendar") });
   const { year, month } = view.currentCalendarMonth();
   const nav = col.createDiv({ cls: "column-explorer-cal-nav" });
-  const prev = nav.createDiv({ cls: "clickable-icon", attr: { role: "button" } });
+  const prev = nav.createEl("button", { cls: "clickable-icon", attr: { type: "button", "aria-label": t("navBack") } });
   (0, import_obsidian10.setIcon)(prev, "chevron-left");
-  prev.addEventListener("click", () => view.navigateCalendarMonth(-1));
-  const monthLabel = nav.createDiv({
+  const navigate = (delta, index) => {
+    var _a2;
+    const restoreFocus = nav.contains(nav.ownerDocument.activeElement);
+    view.navigateCalendarMonth(delta);
+    if (restoreFocus) (_a2 = container.querySelectorAll(".column-explorer-cal-nav button")[index]) == null ? void 0 : _a2.focus();
+  };
+  prev.addEventListener("click", () => navigate(-1, 0));
+  const monthLabel = nav.createEl("button", {
     cls: "column-explorer-cal-month",
     text: new Date(year, month, 1).toLocaleDateString((0, import_obsidian10.getLanguage)(), { month: "long", year: "numeric" }),
-    attr: { "aria-label": t("today"), role: "button" }
+    attr: { "aria-label": t("today"), type: "button" }
   });
-  monthLabel.addEventListener("click", () => view.navigateCalendarMonth(0));
-  const next = nav.createDiv({ cls: "clickable-icon", attr: { role: "button" } });
+  monthLabel.addEventListener("click", () => navigate(0, 1));
+  const next = nav.createEl("button", { cls: "clickable-icon", attr: { type: "button", "aria-label": t("navForward") } });
   (0, import_obsidian10.setIcon)(next, "chevron-right");
-  next.addEventListener("click", () => view.navigateCalendarMonth(1));
+  next.addEventListener("click", () => navigate(1, 2));
   const counts = view.calendarCounts();
   const todayKey = dayKey(Date.now());
   const selectedDay = view.selectedDayKey();
@@ -4052,7 +4230,7 @@ function renderCalendarColumn(view, container) {
   }
   for (const week of monthGrid(year, month)) {
     for (const day of week) {
-      const cell = grid.createDiv({ cls: "column-explorer-cal-cell" });
+      const cell = grid.createEl(day ? "button" : "div", { cls: "column-explorer-cal-cell", attr: day ? { type: "button", "aria-label": day } : {} });
       if (!day) continue;
       cell.addClass("is-day");
       cell.dataset.day = day;
@@ -4066,7 +4244,15 @@ function renderCalendarColumn(view, container) {
   grid.addEventListener("click", (e) => {
     var _a2;
     const cell = (_a2 = e.target) == null ? void 0 : _a2.closest(".column-explorer-cal-cell.is-day");
-    if (cell == null ? void 0 : cell.dataset.day) view.selectDay(cell.dataset.day);
+    if (cell == null ? void 0 : cell.dataset.day) {
+      const restoreFocus = grid.contains(grid.ownerDocument.activeElement);
+      view.selectDay(cell.dataset.day);
+      if (restoreFocus) {
+        const selected = container.querySelector(".column-explorer-cal-cell.is-selected");
+        if (selected) selected.focus();
+        else view.focusColumns();
+      }
+    }
   });
   addResizeHandle(view, col, CALENDAR_PATH);
   return col;
@@ -4369,17 +4555,19 @@ async function countVaultWords(vault, cache, onProgress, isExcluded = () => fals
   const result = /* @__PURE__ */ new Map();
   let done = 0;
   for (const file of files) {
-    const cached = cache.get(file.path);
-    if (cached && cached.mtime === file.stat.mtime) {
-      result.set(file.path, cached.words);
+    const path = file.path;
+    const mtime = file.stat.mtime;
+    const cached = cache.get(path);
+    if (cached && cached.mtime === mtime) {
+      result.set(path, cached.words);
     } else {
       let words = 0;
       try {
         words = countWords(await vault.cachedRead(file));
       } catch (e) {
       }
-      cache.set(file.path, { mtime: file.stat.mtime, words });
-      result.set(file.path, words);
+      cache.set(path, { mtime, words });
+      result.set(path, words);
     }
     done++;
     if (onProgress && (done % 50 === 0 || done === files.length)) {
@@ -4419,19 +4607,28 @@ var SunburstController = class extends import_obsidian12.Component {
     this.nodeByPath = /* @__PURE__ */ new Map();
     this.layouts = {};
     this.wordCache = /* @__PURE__ */ new Map();
+    this.wordsByPath = /* @__PURE__ */ new Map();
     this.wordsReady = false;
+    this.wordsDirty = true;
     this.metric = "size";
     this.rootPath = ROOT_PATH;
     this.view = { x0: 0, x1: 1, depth: 0 };
     this.radius = 280;
     this.animToken = 0;
     this.isClosed = false;
+    this.isMounted = false;
+    this.dataDirty = true;
+    this.revision = 0;
+    this.rescanQueued = false;
+    this.pendingIntro = true;
+    this.pendingMetric = null;
     this.rescanChain = Promise.resolve();
     this.hoveredKey = null;
     this.arcByKey = /* @__PURE__ */ new Map();
     this.pool = /* @__PURE__ */ new Map();
     this.metricBtns = {};
     this.resizeObserver = null;
+    this.scheduleRescan = (0, import_obsidian12.debounce)(() => void this.rescan(false), RESCAN_DEBOUNCE_MS, true);
     this.lastSettingsKey = `${owner.plugin.settings.storageExcluded}|${owner.plugin.settings.storageRingCount}`;
     this.el = createDiv({ cls: "column-explorer-du" });
     const header = this.el.createDiv({ cls: "column-explorer-du-header" });
@@ -4456,7 +4653,10 @@ var SunburstController = class extends import_obsidian12.Component {
     const refreshBtn = controls.createEl("button", { cls: "column-explorer-du-icon-btn" });
     (0, import_obsidian12.setIcon)(refreshBtn, "refresh-cw");
     (0, import_obsidian12.setTooltip)(refreshBtn, t("duRescan"));
-    refreshBtn.addEventListener("click", () => void this.rescan(false));
+    refreshBtn.addEventListener("click", () => {
+      this.markDirty();
+      void this.rescan(false);
+    });
     this.chartWrap = this.el.createDiv({ cls: "column-explorer-du-chart" });
     this.svg = document.createElementNS(SVG_NS, "svg");
     this.svg.classList.add("column-explorer-du-svg");
@@ -4478,31 +4678,42 @@ var SunburstController = class extends import_obsidian12.Component {
       this.resizeObserver.observe(this.chartWrap);
     }
     this.updateGeometry();
-    const scheduleRescan = (0, import_obsidian12.debounce)(() => void this.rescan(false), RESCAN_DEBOUNCE_MS, true);
     const vault = this.app.vault;
-    this.registerEvent(vault.on("create", scheduleRescan));
-    this.registerEvent(vault.on("delete", scheduleRescan));
-    this.registerEvent(vault.on("rename", scheduleRescan));
-    this.registerEvent(vault.on("modify", scheduleRescan));
-    void this.rescan(true);
+    this.registerEvent(vault.on("create", () => this.onVaultChange()));
+    this.registerEvent(vault.on("delete", () => this.onVaultChange()));
+    this.registerEvent(vault.on("rename", () => this.onVaultChange()));
+    this.registerEvent(vault.on("modify", () => this.onVaultChange()));
   }
   get app() {
     return this.owner.app;
   }
   /**
-   * Перенос готового элемента в свежую колонку — без пересборки диаграммы.
+   * Перенос готового элемента в свежую колонку без пересборки диаграммы.
    * Заодно единственное место, где видно изменение настроек: колонка
    * перерисовывается после сохранения, а рескан нужен только если поменялись
    * исключения или число колец.
    */
   mount(container) {
+    if (this.isClosed) return;
+    this.isMounted = true;
     container.appendChild(this.el);
     const key = this.settingsKey();
     if (key !== this.lastSettingsKey) {
       this.lastSettingsKey = key;
-      if (this.tree) void this.rescan(false);
+      this.markDirty();
     }
     this.handleResize();
+    void this.rescan(!this.tree);
+  }
+  /** Stop background refreshes but keep the tree, cache and active scan. */
+  suspend() {
+    this.isMounted = false;
+    this.scheduleRescan.cancel();
+  }
+  /** Detach the chart while preserving its state for a later mount. */
+  unmount() {
+    this.suspend();
+    this.el.detach();
   }
   settingsKey() {
     const s = this.owner.plugin.settings;
@@ -4511,6 +4722,8 @@ var SunburstController = class extends import_obsidian12.Component {
   onunload() {
     var _a;
     this.isClosed = true;
+    this.isMounted = false;
+    this.scheduleRescan.cancel();
     this.animToken++;
     (_a = this.resizeObserver) == null ? void 0 : _a.disconnect();
     this.resizeObserver = null;
@@ -4529,46 +4742,99 @@ var SunburstController = class extends import_obsidian12.Component {
   rings() {
     return this.owner.plugin.settings.storageRingCount;
   }
+  markDirty() {
+    if (this.isClosed) return;
+    this.dataDirty = true;
+    this.wordsDirty = true;
+    this.revision++;
+  }
+  onVaultChange() {
+    this.markDirty();
+    if (this.isMounted) this.scheduleRescan();
+  }
   /**
-   * Сканы выстраиваются в очередь: событие vault, настройки и кнопка не
-   * пересекаются. Отказ гасится здесь же: rejected-промис в хвосте цепочки
-   * молча проглотил бы ВСЕ последующие сканы, и диаграмма навсегда застыла
-   * бы на старых данных. Скан — best effort, как и словосчёт внутри него.
+   * В каждый момент работает не больше одного скана. Событие во время I/O
+   * оставляет dirty-флаг, поэтому цикл повторится с актуальным снимком.
    */
   rescan(intro) {
-    this.rescanChain = this.rescanChain.then(() => this.doRescan(intro)).catch(() => {
+    this.pendingIntro || (this.pendingIntro = intro);
+    if (this.isClosed || !this.isMounted || this.rescanQueued) return this.rescanChain;
+    if (!this.dataDirty && !(this.wordsDirty && (this.metric === "words" || this.pendingMetric === "words"))) {
+      return this.rescanChain;
+    }
+    this.rescanQueued = true;
+    let failed = false;
+    this.rescanChain = this.rescanChain.then(() => this.drainRescans()).catch(() => {
+      failed = true;
+      this.dataDirty = true;
+      this.resetWordsButton();
+    }).then(() => {
+      this.rescanQueued = false;
+      if (!failed && this.isMounted && this.needsRescan()) void this.rescan(false);
     });
     return this.rescanChain;
   }
-  async doRescan(intro) {
-    var _a, _b;
+  needsRescan() {
+    return this.dataDirty || this.wordsDirty && (this.metric === "words" || this.pendingMetric === "words");
+  }
+  async drainRescans() {
+    while (!this.isClosed && this.isMounted && this.needsRescan()) {
+      const intro = this.pendingIntro;
+      this.pendingIntro = false;
+      const countWords2 = this.wordsDirty && (this.metric === "words" || this.pendingMetric === "words");
+      this.dataDirty = false;
+      try {
+        await this.doRescan(intro, countWords2);
+      } catch (error) {
+        this.dataDirty = true;
+        throw error;
+      }
+    }
+  }
+  async doRescan(intro, countWords2) {
     if (this.isClosed) return;
+    const scanRevision = this.revision;
     const isExcluded = this.excluded();
-    if (!this.tree) {
-      this.rebuild(/* @__PURE__ */ new Map(), isExcluded);
-      this.drawStatic();
-      if (intro) this.playIntro();
+    if (countWords2) {
+      const wordsBtn = this.metricBtns.words;
+      if (wordsBtn) wordsBtn.disabled = true;
+      const words = await countVaultWords(
+        this.app.vault,
+        this.wordCache,
+        (done, total) => {
+          if (!this.isClosed && wordsBtn) {
+            wordsBtn.setText(`${t("duWords")} ${Math.round(done / total * 100)}%`);
+          }
+        },
+        isExcluded
+      );
+      if (this.isClosed) return;
+      this.wordsByPath = words;
+      this.wordsReady = true;
+      if (scanRevision === this.revision) this.wordsDirty = false;
     }
-    const wordsBtn = this.metricBtns.words;
-    const words = await countVaultWords(
-      this.app.vault,
-      this.wordCache,
-      (done, total) => {
-        if (!this.wordsReady && !this.isClosed && wordsBtn) {
-          wordsBtn.setText(`${t("duWords")} ${Math.round(done / total * 100)}%`);
-        }
-      },
-      isExcluded
-    );
     if (this.isClosed) return;
-    this.rebuild(words, isExcluded);
-    this.wordsReady = true;
-    if (wordsBtn) {
-      wordsBtn.setText(t("duWords"));
-      wordsBtn.disabled = ((_b = (_a = this.layouts.words) == null ? void 0 : _a.total) != null ? _b : 0) <= 0;
-      if (wordsBtn.disabled) (0, import_obsidian12.setTooltip)(wordsBtn, t("duNoWords"));
+    const hadTree = this.tree !== null;
+    this.rebuild(this.wordsByPath, isExcluded);
+    this.resetWordsButton();
+    if (this.pendingMetric === "words" && this.wordsReady && !this.wordsDirty) {
+      this.pendingMetric = null;
+      this.applyMetric("words");
+    } else if (!hadTree && intro) {
+      this.drawStatic();
+      this.playIntro();
+    } else {
+      this.drawStatic();
     }
-    if (!intro) this.drawStatic();
+  }
+  resetWordsButton() {
+    var _a, _b;
+    const wordsBtn = this.metricBtns.words;
+    if (!wordsBtn) return;
+    wordsBtn.setText(t("duWords"));
+    wordsBtn.disabled = this.wordsReady && !this.wordsDirty && ((_b = (_a = this.layouts.words) == null ? void 0 : _a.total) != null ? _b : 0) <= 0;
+    if (wordsBtn.disabled) (0, import_obsidian12.setTooltip)(wordsBtn, t("duNoWords"));
+    else wordsBtn.removeAttribute("aria-label");
   }
   rebuild(words, isExcluded) {
     this.tree = buildTree(this.app.vault, words, isExcluded);
@@ -4717,6 +4983,15 @@ var SunburstController = class extends import_obsidian12.Component {
     this.updateCenter(null);
   }
   setMetric(metric) {
+    if (metric === "words" && this.wordsDirty) {
+      this.pendingMetric = "words";
+      void this.rescan(false);
+      return;
+    }
+    this.pendingMetric = null;
+    this.applyMetric(metric);
+  }
+  applyMetric(metric) {
     var _a;
     if (metric === this.metric || !this.tree) return;
     const oldLayout = this.layout();
@@ -5009,6 +5284,13 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     this.applyFilter = (0, import_obsidian13.debounce)(() => {
       this.filter = this.searchInput.value.trim();
       this.filterMatcher = this.filter ? (0, import_obsidian13.prepareFuzzySearch)(this.filter) : null;
+      this.clearMulti();
+      const depth = this.selection.length - 1;
+      const selected = this.selection[depth];
+      if (selected && !selected.startsWith("::") && !this.siblingsAt(depth).some((item) => item.path === selected)) {
+        this.selection = this.selection.slice(0, depth);
+        this.persistState();
+      }
       this.render();
     }, 150, true);
     /** Матчер текущего запроса; null — фильтр выключен. */
@@ -5048,37 +5330,30 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     if (import_obsidian13.Platform.isMobile) {
       this.updateMobileToolbar = buildMobileToolbar(this, toolbar);
     } else {
-      this.addToolbarButton(toolbar, "file-plus", t("newNote"), () => void this.createNote(this.currentFolder()));
-      this.addToolbarButton(toolbar, "folder-plus", t("newFolder"), () => void this.createFolder(this.currentFolder()));
-      this.addToolbarButton(toolbar, "locate", t("reveal"), () => this.revealFile(this.app.workspace.getActiveFile()));
+      this.addToolbarButton(toolbar, "plus", t("create"), (e) => showMobileCreateMenu(this, e));
       this.addToolbarButton(toolbar, "arrow-up-narrow-wide", t("sort"), (e) => showSortMenu(this, e));
-      this.addToolbarButton(toolbar, "chevrons-left", t("collapse"), () => this.collapseToRoot());
-      this.lockBtn = this.addToolbarButton(toolbar, "lock-open", t("lockPanel"), () => {
-        const s = this.plugin.settings;
-        s.lockedColumnCount = s.lockedColumnCount === null ? this.folderColumnCount() : null;
-        void this.plugin.saveSettings();
-        this.render();
-      });
-      this.updateLockButton();
-      this.widthLockBtn = toolbar.createEl("button", {
-        cls: "clickable-icon column-explorer-toolbar-btn",
-        attr: { type: "button", "aria-label": t("lockColumnWidths"), "data-action": "lock-column-widths" }
-      });
-      (0, import_obsidian13.setIcon)(this.widthLockBtn, "ruler");
-      this.registerDomEvent(this.widthLockBtn, "click", () => {
-        this.plugin.settings.lockColumnWidths = !this.plugin.settings.lockColumnWidths;
-        void this.plugin.saveSettings();
-        this.render();
-      });
+      const more = this.addToolbarButton(toolbar, "more-horizontal", t("more"), (e) => this.showMoreMenu(e));
+      more.dataset.action = "more";
     }
     if (import_obsidian13.Platform.isMobile) {
       this.searchRowEl = container.createDiv({ cls: "column-explorer-search-row" });
       this.searchRowEl.hide();
     }
-    this.searchInput = ((_a = this.searchRowEl) != null ? _a : toolbar).createEl("input", {
+    const search = ((_a = this.searchRowEl) != null ? _a : toolbar).createDiv({ cls: "column-explorer-search-wrap" });
+    this.searchInput = search.createEl("input", {
       type: "search",
       cls: "column-explorer-search",
-      attr: { placeholder: t("search"), "aria-label": t("search") }
+      attr: { placeholder: t("filterColumns"), "aria-label": t("filterColumns") }
+    });
+    this.clearFilterBtn = search.createEl("button", {
+      cls: "clickable-icon column-explorer-clear-filter",
+      attr: { type: "button", "aria-label": t("clearFilter") }
+    });
+    (0, import_obsidian13.setIcon)(this.clearFilterBtn, "x");
+    this.clearFilterBtn.hidden = true;
+    this.registerDomEvent(this.clearFilterBtn, "click", () => {
+      this.clearFilter();
+      this.searchInput.focus();
     });
     this.registerDomEvent(this.searchInput, "input", () => this.applyFilter());
     this.registerDomEvent(this.searchInput, "keydown", (e) => {
@@ -5125,6 +5400,13 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
       this.remapPathRecords(oldPath, f.path);
       this.markDirty(null);
     }));
+    this.registerEvent(this.app.vault.on("modify", (file) => {
+      var _a2;
+      const folder = file.parent;
+      if (!folder) return;
+      const sort = (_a2 = this.plugin.settings.columnSortModes[folder.path]) != null ? _a2 : this.plugin.settings.sortMode;
+      if (sort.startsWith("mtime-") || sort.startsWith("size-")) this.markDirty(folder.path);
+    }));
     try {
       const app = this.app;
       const ref = (_e = (_d = (_c = (_b = app.internalPlugins) == null ? void 0 : _b.getEnabledPluginById) == null ? void 0 : _c.call(_b, "bookmarks")) == null ? void 0 : _d.on) == null ? void 0 : _e.call(_d, "changed", () => {
@@ -5150,17 +5432,33 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     if (this.columnsEl) disconnectListObservers(this.columnsEl);
   }
   addToolbarButton(parent, icon, tooltip, onClick) {
-    const btn = parent.createDiv({ cls: "clickable-icon column-explorer-toolbar-btn", attr: { "aria-label": tooltip } });
+    const btn = parent.createEl("button", { cls: "clickable-icon column-explorer-toolbar-btn", attr: { type: "button", "aria-label": tooltip } });
     (0, import_obsidian13.setIcon)(btn, icon);
-    this.registerDomEvent(btn, "click", onClick);
+    this.registerDomEvent(btn, "click", (event) => {
+      if (event.detail === 0) {
+        const rect = btn.getBoundingClientRect();
+        onClick(new MouseEvent("click", { clientX: rect.left, clientY: rect.bottom }));
+      } else onClick(event);
+    });
     return btn;
   }
-  updateLockButton() {
-    if (!this.lockBtn) return;
-    const locked = this.plugin.settings.lockedColumnCount !== null;
-    (0, import_obsidian13.setIcon)(this.lockBtn, locked ? "lock" : "lock-open");
-    this.lockBtn.setAttribute("aria-label", locked ? t("unlockPanel") : t("lockPanel"));
-    this.lockBtn.toggleClass("is-active", locked);
+  showMoreMenu(event) {
+    const menu = new import_obsidian13.Menu();
+    menu.addItem((item) => item.setTitle(t("reveal")).setIcon("locate").onClick(() => this.revealFile(this.app.workspace.getActiveFile())));
+    menu.addItem((item) => item.setTitle(t("collapse")).setIcon("chevrons-left").onClick(() => this.collapseToRoot()));
+    menu.addSeparator();
+    const settings = this.plugin.settings;
+    menu.addItem((item) => item.setTitle(settings.lockedColumnCount === null ? t("lockColumnCount", { n: this.folderColumnCount() }) : t("unlockColumnCount")).setIcon("columns-3").setChecked(settings.lockedColumnCount !== null).onClick(() => {
+      settings.lockedColumnCount = settings.lockedColumnCount === null ? this.folderColumnCount() : null;
+      void this.plugin.saveSettings();
+      this.render();
+    }));
+    menu.addItem((item) => item.setTitle(t("panelAutoWidth")).setIcon("ruler").setChecked(settings.autoPanelResize).onClick(() => {
+      setPanelAutoResize(settings, !settings.autoPanelResize);
+      void this.plugin.saveSettings();
+      this.autoResizePanel();
+    }));
+    menu.showAtMouseEvent(event);
   }
   /* ------------------------------ mobile --------------------------- */
   canGoBack() {
@@ -5259,6 +5557,15 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     const children = visibleChildren(folder, this.plugin.settings);
     return filterByMatcher(children, displayName, this.filterMatcher, (c) => c instanceof import_obsidian13.TFolder);
   }
+  filteredItems(items) {
+    return filterByMatcher(items, displayName, this.filterMatcher, () => false);
+  }
+  quickAccessItems() {
+    const favorites = this.plugin.settings.showFavorites ? this.filteredItems(this.favoriteItems()) : [];
+    const favoritePaths = new Set(favorites.map((file) => file.path));
+    const bookmarks = this.plugin.settings.showBookmarks && this.bookmarksAvailable() ? this.filteredItems(this.bookmarkedItems()).filter((file) => !favoritePaths.has(file.path)) : [];
+    return { favorites, bookmarks };
+  }
   /** Совпадение имени с текущим запросом — для подсветки в списке. */
   matchOf(name) {
     var _a, _b;
@@ -5271,6 +5578,7 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     return this.filter;
   }
   clearFilter() {
+    this.applyFilter.cancel();
     this.filterMatcher = null;
     this.filter = "";
     this.searchInput.value = "";
@@ -5369,7 +5677,7 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     this.flushRefresh();
   }
   doRefresh() {
-    var _a;
+    var _a, _b;
     if (this.fullRenderPending) {
       this.fullRenderPending = false;
       this.dirtyFolders.clear();
@@ -5388,6 +5696,7 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
         const prevTop = list.scrollTop;
         renderColumnList(this, list, folder, depth);
         list.scrollTop = prevTop;
+        (_b = list.querySelector('[aria-selected="true"]')) == null ? void 0 : _b.scrollIntoView({ block: "nearest", inline: "nearest" });
       }
     }
     this.dirtyFolders.clear();
@@ -5417,12 +5726,11 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     }).join("\n");
   }
   render() {
-    var _a, _b;
-    if (this.widthLockBtn) {
-      const locked = this.plugin.settings.lockColumnWidths;
-      this.widthLockBtn.setAttribute("aria-pressed", String(locked));
-      this.widthLockBtn.toggleClass("is-active", locked);
-    }
+    var _a, _b, _c, _d;
+    this.clearFilterBtn.hidden = !this.hasFilter();
+    const filterApplies = this.specialKind(this.selection[0]) !== "storage" && !(this.specialKind(this.selection[0]) === "calendar" && this.selection.length === 1);
+    this.searchInput.disabled = !filterApplies;
+    (_a = this.searchInput.parentElement) == null ? void 0 : _a.toggleClass("is-inactive", !filterApplies);
     clearActiveDrag();
     commitActiveResize();
     const scrollTops = this.captureScrollTops();
@@ -5435,6 +5743,7 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     const validSel = [];
     const special = this.specialKind(this.selection[0]);
     if (!this.plugin.settings.showStorage) this.dropSunburst();
+    else if (special !== "storage") (_b = this.sunburst) == null ? void 0 : _b.suspend();
     if (special === "calendar") {
       validSel.push(CALENDAR_PATH);
       const day = this.selection[1];
@@ -5446,7 +5755,7 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     } else if (special) {
       validSel.push(this.selection[0]);
       const filePath = this.selection[1];
-      if (filePath && this.app.vault.getAbstractFileByPath(filePath) instanceof import_obsidian13.TFile) validSel.push(filePath);
+      if (filePath && this.app.vault.getAbstractFileByPath(filePath)) validSel.push(filePath);
     } else {
       let parent = this.app.vault.getRoot();
       for (const path of this.selection) {
@@ -5462,7 +5771,6 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     const lockedCount = import_obsidian13.Platform.isMobile ? 1 : this.plugin.settings.lockedColumnCount;
     const folderCols = this.folderColumnCount();
     const hasGap = lockedCount !== null && folderCols > lockedCount;
-    this.updateLockButton();
     this.columnsEl.toggleClass("is-locked", hasGap);
     if (!(import_obsidian13.Platform.isMobile && special) && lockedColumnVisible(0, folderCols, lockedCount)) {
       renderColumn(this, this.columnsEl, this.app.vault.getRoot(), 0);
@@ -5473,13 +5781,11 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
       if (f instanceof import_obsidian13.TFile && this.plugin.settings.showPreview) renderPreviewColumn(this, this.columnsEl, f);
     };
     if (special === "recents") {
-      renderFileListColumn(this, this.columnsEl, t("recents"), this.recentFiles(), RECENTS_PATH, 1);
+      renderFileListColumn(this, this.columnsEl, t("recents"), this.filteredItems(this.recentFiles()), RECENTS_PATH, 1);
       previewOf(this.selection[1]);
     } else if (special === "bookmarks") {
-      const favs = this.plugin.settings.showFavorites ? this.favoriteItems() : [];
-      const favPaths = new Set(favs.map((f) => f.path));
-      const core = this.plugin.settings.showBookmarks && this.bookmarksAvailable() ? this.bookmarkedItems().filter((f) => !favPaths.has(f.path)) : [];
-      renderFileListColumn(this, this.columnsEl, t("bookmarks"), core, BOOKMARKS_PATH, 1, favs);
+      const { favorites, bookmarks } = this.quickAccessItems();
+      renderFileListColumn(this, this.columnsEl, t("bookmarks"), bookmarks, BOOKMARKS_PATH, 1, favorites);
       previewOf(this.selection[1]);
     } else if (special === "storage") {
       renderStorageColumn(this, this.columnsEl);
@@ -5489,7 +5795,7 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
       if (daySentinel) {
         const day = daySentinel.slice(DAY_PATH_PREFIX.length);
         const title = new Date(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8))).toLocaleDateString((0, import_obsidian13.getLanguage)(), { day: "numeric", month: "long", year: "numeric" });
-        renderFileListColumn(this, this.columnsEl, title, this.filesCreatedOn(day), daySentinel, 2);
+        renderFileListColumn(this, this.columnsEl, title, this.filteredItems(this.filesCreatedOn(day)), daySentinel, 2);
         previewOf(this.selection[2]);
       }
     } else {
@@ -5506,8 +5812,8 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     if (hasGap && !import_obsidian13.Platform.isMobile) this.markLockedColumn();
     this.renderBreadcrumbs();
     this.applyMobileScale();
-    (_a = this.updateMobileToolbar) == null ? void 0 : _a.call(this);
-    (_b = this.updateActionBar) == null ? void 0 : _b.call(this);
+    (_c = this.updateMobileToolbar) == null ? void 0 : _c.call(this);
+    (_d = this.updateActionBar) == null ? void 0 : _d.call(this);
     this.restoreScrollTops(scrollTops);
     const sameColumns = this.columnsKey() === prevKey;
     window.requestAnimationFrame(() => {
@@ -5518,7 +5824,7 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
   }
   /** Авто-ширина панели: подгоняет ширину сайдбара под суммарную ширину колонок. */
   autoResizePanel() {
-    if (this.plugin.settings.lockColumnWidths || !this.plugin.settings.autoPanelResize || import_obsidian13.Platform.isMobile) return;
+    if (!this.plugin.settings.autoPanelResize || import_obsidian13.Platform.isMobile) return;
     const ws = this.app.workspace;
     const root = this.leaf.getRoot();
     if (root !== ws.leftSplit && root !== ws.rightSplit) return;
@@ -5566,12 +5872,20 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     this.breadcrumbsEl.empty();
     const nav = this.breadcrumbsEl.createDiv({ cls: "column-explorer-nav-buttons" });
     const navBtn = (icon, label, enabled, onClick) => {
-      const btn = nav.createDiv({
+      const btn = nav.createEl("button", {
         cls: "clickable-icon column-explorer-nav-btn" + (enabled ? "" : " is-disabled"),
-        attr: { "aria-label": label, role: "button" }
+        attr: { type: "button", "aria-label": label }
       });
       (0, import_obsidian13.setIcon)(btn, icon);
-      if (enabled) btn.addEventListener("click", onClick);
+      btn.disabled = !enabled;
+      if (enabled) btn.addEventListener("click", () => {
+        const restoreFocus = btn.ownerDocument.activeElement === btn;
+        onClick();
+        if (restoreFocus) {
+          const next = Array.from(this.breadcrumbsEl.querySelectorAll(".column-explorer-nav-btn")).find((candidate) => candidate.getAttribute("aria-label") === label && !candidate.disabled);
+          (next != null ? next : this.columnsEl).focus();
+        }
+      });
     };
     if (!import_obsidian13.Platform.isMobile) {
       navBtn("arrow-left", t("navBack"), this.canGoBack(), () => this.goBack());
@@ -5579,24 +5893,32 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     }
     const current = this.currentFolder();
     const isFav = this.isFavorite(current.path);
-    const star = nav.createDiv({
+    const star = nav.createEl("button", {
       cls: "clickable-icon column-explorer-fav-btn" + (isFav ? " is-active" : ""),
-      attr: { "aria-label": isFav ? t("removeFavorite") : t("addFavorite"), role: "button" }
+      attr: { type: "button", "aria-label": isFav ? t("removeFavorite") : t("addFavorite"), "aria-pressed": String(isFav) }
     });
     (0, import_obsidian13.setIcon)(star, "star");
-    star.addEventListener("click", () => this.toggleFavorite(current.path));
+    star.addEventListener("click", () => {
+      var _a;
+      const restoreFocus = star.ownerDocument.activeElement === star;
+      this.toggleFavorite(current.path);
+      if (restoreFocus) (_a = this.breadcrumbsEl.querySelector(".column-explorer-fav-btn")) == null ? void 0 : _a.focus();
+    });
     const addSegment = (label, targetDepth, isLast, dropFolder) => {
-      const seg = this.breadcrumbsEl.createSpan({
+      const seg = this.breadcrumbsEl.createEl(isLast ? "span" : "button", {
         cls: "column-explorer-crumb" + (isLast ? " is-current" : ""),
-        text: label
+        text: label,
+        attr: isLast ? { "aria-current": "page" } : { type: "button" }
       });
       if (dropFolder) setupCrumbDropTarget(this, seg, dropFolder);
       if (!isLast) {
         seg.addEventListener("click", () => {
+          const restoreFocus = seg.ownerDocument.activeElement === seg;
           this.selection = this.selection.slice(0, targetDepth);
           this.clearMulti();
           this.persistState();
           this.render();
+          if (restoreFocus) this.columnsEl.focus();
         });
         this.breadcrumbsEl.createSpan({ cls: "column-explorer-crumb-sep", text: "\u203A" });
       }
@@ -5605,7 +5927,7 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     this.selection.forEach((path, i) => {
       var _a;
       const f = this.app.vault.getAbstractFileByPath(path);
-      const label = f ? displayName(f) : path === RECENTS_PATH ? t("recents") : path === BOOKMARKS_PATH ? t("bookmarks") : path === CALENDAR_PATH ? t("calendar") : path.startsWith(DAY_PATH_PREFIX) ? path.slice(DAY_PATH_PREFIX.length) : (_a = path.split("/").pop()) != null ? _a : path;
+      const label = f ? displayName(f) : path === RECENTS_PATH ? t("recents") : path === BOOKMARKS_PATH ? t("bookmarks") : path === CALENDAR_PATH ? t("calendar") : path === STORAGE_PATH ? t("diskUsage") : path.startsWith(DAY_PATH_PREFIX) ? path.slice(DAY_PATH_PREFIX.length) : (_a = path.split("/").pop()) != null ? _a : path;
       addSegment(label, i + 1, i === this.selection.length - 1, f instanceof import_obsidian13.TFolder ? f : void 0);
     });
     if (import_obsidian13.Platform.isMobile) {
@@ -5812,7 +6134,51 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     new import_obsidian13.Notice(t(has ? "favoriteRemoved" : "favoriteAdded"));
     this.render();
   }
+  renderSelection(previous, scroll = false) {
+    var _a, _b;
+    const depth = this.selection.length - 1;
+    const path = this.selection[depth];
+    const file = path ? this.app.vault.getAbstractFileByPath(path) : null;
+    const previousFile = previous[depth] ? this.app.vault.getAbstractFileByPath(previous[depth]) : null;
+    const sameParents = previous.slice(0, depth).join("\n") === this.selection.slice(0, depth).join("\n");
+    const virtualList = depth === 1 && this.selection[0] === BOOKMARKS_PATH && previous[0] === BOOKMARKS_PATH;
+    const unchangedColumns = sameParents && previous.length === this.selection.length && (virtualList || file instanceof import_obsidian13.TFile && previousFile instanceof import_obsidian13.TFile);
+    let row = path ? this.columnsEl.querySelector(
+      `.column-explorer-column[data-depth="${depth}"] .column-explorer-item[data-path="${CSS.escape(path)}"]`
+    ) : null;
+    if (unchangedColumns && !row) {
+      const folder = this.folderAtDepth(depth);
+      const list = this.columnsEl.querySelector(`.column-explorer-column[data-depth="${depth}"] .column-explorer-list`);
+      if (folder && list) {
+        renderColumnList(this, list, folder, depth);
+        row = list.querySelector(`.column-explorer-item[data-path="${CSS.escape(path)}"]`);
+      }
+    }
+    if (!unchangedColumns || !row) {
+      this.render();
+      row = path ? this.columnsEl.querySelector(
+        `.column-explorer-column[data-depth="${depth}"] .column-explorer-item[data-path="${CSS.escape(path)}"]`
+      ) : null;
+    } else {
+      this.columnsEl.querySelectorAll(`.column-explorer-column[data-depth="${depth}"] .column-explorer-item`).forEach((item) => {
+        const selected = item.dataset.path === path;
+        item.toggleClass("is-selected", selected);
+        item.setAttribute("aria-selected", String(selected));
+      });
+      this.syncMultiSelDom();
+      this.updateActiveFileHighlight();
+      (_a = this.columnsEl.querySelector(".column-explorer-preview")) == null ? void 0 : _a.remove();
+      if (file instanceof import_obsidian13.TFile && this.plugin.settings.showPreview && !import_obsidian13.Platform.isMobile) {
+        renderPreviewColumn(this, this.columnsEl, file);
+      }
+      this.recordHistory();
+      this.renderBreadcrumbs();
+      (_b = this.updateMobileToolbar) == null ? void 0 : _b.call(this);
+    }
+    if (scroll && row) row.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
   selectItem(f, depth, e) {
+    const previous = [...this.selection];
     this.selection = this.selection.slice(0, depth);
     this.selection.push(f.path);
     this.shiftAnchor = f.path;
@@ -5823,11 +6189,11 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
       if (note) void this.app.workspace.getLeaf(import_obsidian13.Keymap.isModEvent(e)).openFile(note);
     }
     this.persistState();
-    this.render();
+    this.renderSelection(previous);
   }
   toggleMulti(f, depth) {
     this.applyToggleMulti(f, depth);
-    this.render();
+    this.syncMultiSelDom();
   }
   /** Мутация мультивыделения без перерисовки — общая с мобильным режимом. */
   applyToggleMulti(f, depth) {
@@ -5853,18 +6219,19 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     }
     const [from, to] = ai < bi ? [ai, bi] : [bi, ai];
     for (let i = from; i <= to; i++) this.multiSel.add(siblings[i].path);
-    this.render();
+    this.syncMultiSelDom();
   }
   /** Cmd/Ctrl+A — multi-select every item in the active folder column. */
   selectAllAt(depth) {
-    const folder = this.folderAtDepth(depth);
-    if (!folder) return;
-    const children = this.childrenOf(folder);
+    const children = this.siblingsAt(depth).flatMap(({ path }) => {
+      const file = this.app.vault.getAbstractFileByPath(path);
+      return file ? [file] : [];
+    });
     if (children.length === 0) return;
     this.clearMulti();
     this.multiSelDepth = depth;
-    for (const c of children) this.multiSel.add(c.path);
-    this.render();
+    for (const child of children) this.multiSel.add(child.path);
+    this.syncMultiSelDom();
   }
   /* ------------------------- copy / cut / paste -------------------- */
   /** Положить пути в буфер; cut-режим затемняет исходники до вставки. */
@@ -6031,7 +6398,7 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
   /* ---------------------------- keyboard --------------------------- */
   onKeyDown(e) {
     var _a;
-    if (this.renamingPath) return;
+    if (this.renamingPath || e.target instanceof HTMLElement && e.target !== this.columnsEl && e.target.closest("button, input, select, textarea, [contenteditable=true]")) return;
     if (this.mobileSelActive && e.key === "Escape") {
       e.preventDefault();
       this.exitMobileSelection();
@@ -6044,11 +6411,12 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     const jumpTo = (idx) => {
       if (children.length === 0) return;
       const next = children[Math.min(children.length - 1, Math.max(0, idx))];
+      const previous = [...this.selection];
       this.selection = this.selection.slice(0, depth);
       this.selection.push(next.path);
       this.clearMulti();
       this.persistState();
-      this.render();
+      this.renderSelection(previous, true);
     };
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       e.preventDefault();
@@ -6075,6 +6443,10 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
       if (this.enterVirtual(selectedPath, depth)) return;
       const f = selectedPath ? this.app.vault.getAbstractFileByPath(selectedPath) : null;
       if (f instanceof import_obsidian13.TFolder) {
+        if (this.specialKind(this.selection[0]) === "bookmarks") {
+          this.revealFile(f);
+          return;
+        }
         const inner = this.childrenOf(f);
         if (inner.length > 0) {
           this.selection.push(inner[0].path);
@@ -6134,11 +6506,12 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     }, TYPEAHEAD_RESET_MS);
     const match = children.find((c) => c.name.toLowerCase().startsWith(this.typeaheadBuffer));
     if (!match) return;
+    const previous = [...this.selection];
     this.selection = this.selection.slice(0, depth);
     this.selection.push(match.path);
     this.clearMulti();
     this.persistState();
-    this.render();
+    this.renderSelection(previous, true);
   }
   /**
    * «Соседи» для клавиатурной навигации на данной глубине: в виртуальных
@@ -6149,11 +6522,14 @@ var ColumnExplorerView = class extends import_obsidian13.ItemView {
     const toEntry = (f) => ({ path: f.path, name: displayName(f) });
     const special = this.specialKind(this.selection[0]);
     if (special && depth >= 1) {
-      if (special === "recents") return this.recentFiles().map(toEntry);
-      if (special === "bookmarks") return this.bookmarkedItems().map(toEntry);
+      if (special === "recents") return this.filteredItems(this.recentFiles()).map(toEntry);
+      if (special === "bookmarks") {
+        const { favorites, bookmarks } = this.quickAccessItems();
+        return [...favorites, ...bookmarks].map(toEntry);
+      }
       if (special === "storage") return [];
       const day = this.selectedDayKey();
-      return depth === 2 && day ? this.filesCreatedOn(day).map(toEntry) : [];
+      return depth === 2 && day ? this.filteredItems(this.filesCreatedOn(day)).map(toEntry) : [];
     }
     const parentFolder = this.folderAtDepth(depth);
     const entries = (parentFolder ? this.childrenOf(parentFolder) : []).map(toEntry);

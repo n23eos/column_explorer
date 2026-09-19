@@ -287,7 +287,7 @@ describe("column width lock", () => {
 		const showMenu = vi.spyOn(Menu.prototype, "showAtMouseEvent");
 		const toggle = () => {
 			view.contentEl.querySelector<HTMLButtonElement>('[data-action="more"]')!.click();
-			const menu = showMenu.mock.instances.at(-1);
+			const menu = showMenu.mock.instances[showMenu.mock.instances.length - 1] as Menu | undefined;
 			const item = menu?.items.find(item => item.title === t("panelAutoWidth"));
 			expect(item?.callback).toBeDefined();
 			item!.callback!();
