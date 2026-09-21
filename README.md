@@ -162,13 +162,10 @@ No. All operations go through Obsidian's own `fileManager`, the same API the cor
 **Is my vault too big for it?**
 Large folders render in chunks as you scroll, so tens of thousands of files are fine. If a specific vault feels slow, please open an issue with the size and shape of it.
 
-## Support & feedback
+## Feedback
 
 - **Found a bug or have an idea?** [Open an issue](https://github.com/n23eos/column_explorer/issues) — bug reports with a screenshot and your Obsidian version are the most useful thing you can send.
 - **Translation correction?** One file, one pull request — see [CONTRIBUTING.md](CONTRIBUTING.md#translations).
-- **Want to say thanks?** Support further development:
-
-  [![ETH](https://img.shields.io/badge/ETH-0x7777...88C4-blue?logo=ethereum&style=flat-square)](https://etherscan.io/address/0x77777da54702AC8789D53fc7cC6201C29a1A88C4)
 
 ## Contributing
 
@@ -192,6 +189,27 @@ Calendar and Disk usage appear under **Tools** in the root column. Their existin
 
 Large folders load chunks around the selected file, including after Home or End. Moving between files keeps the existing folder columns alive. A hidden Disk usage chart postpones refreshes until it is reopened; word counting starts only when you choose **Words**.
 
+## More projects
+
+### Obsidian plugins
+
+| Plugin | What it does |
+| --- | --- |
+| [Graph Insight](https://community.obsidian.md/plugins/graph-insight) | Explore large vaults as an interactive graph. |
+| [Always-on-Top Tasks](https://community.obsidian.md/plugins/tasks-for-focus-adhd) | Keep a note and its tasks in a focused floating overlay. |
+| [Column Explorer](https://community.obsidian.md/plugins/column-explorer) | Browse a vault with Finder-style Miller columns. |
+| [Vault Sunburst](https://community.obsidian.md/plugins/vault-sunburst) | Visualize folder sizes, word counts and file counts. |
+| [Vault Telegram Bridge](https://community.obsidian.md/plugins/vault-telegram-bridge) | Capture Telegram messages and media in an Obsidian vault. |
+
+### Browser extensions
+
+| Extension | What it does |
+| --- | --- |
+| [FloatPlayer - Picture in Picture](https://chromewebstore.google.com/detail/floatplayer-%E2%80%94-picture-in/colaiiadempclbkepfnojfggmpcadadg?authuser=0&hl=ru) | Keep YouTube video in a floating picture-in-picture player. |
+| [Eye Rest 20-20-20](https://chromewebstore.google.com/detail/eye-rest-20-20-20/gfffpnlfldimcjnkgleknfheojoncama?authuser=0&hl=ru) | Gentle 20-20-20 reminders for your eyes. |
+
 ## Support
 
-[![Buy me a coffee](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/n23eos)
+If this project was useful to you, feel free to support further development:
+
+[![ETH](https://img.shields.io/badge/ETH-0x7777...88C4-blue?logo=ethereum&style=flat-square)](https://etherscan.io/address/0x77777da54702AC8789D53fc7cC6201C29a1A88C4)[![Donate](https://img.shields.io/badge/donate-crypto-orange?style=flat-square)](https://etherscan.io/address/0x77777da54702AC8789D53fc7cC6201C29a1A88C4)[![Buy me a coffee](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/n23eos)
