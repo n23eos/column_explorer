@@ -191,3 +191,7 @@ The desktop toolbar contains **Create**, **Sort** and **More**, followed by the 
 Calendar and Disk usage appear under **Tools** in the root column. Their existing visibility settings are preserved. Dependent options in settings appear only when the corresponding feature is enabled.
 
 Large folders load chunks around the selected file, including after Home or End. Moving between files keeps the existing folder columns alive. A hidden Disk usage chart postpones refreshes until it is reopened; word counting starts only when you choose **Words**.
+
+## Support
+
+[![Buy me a coffee](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/n23eos)
