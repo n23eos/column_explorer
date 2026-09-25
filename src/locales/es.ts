@@ -1,6 +1,23 @@
 import type { Locale } from "./en";
 
 export const es: Locale = {
+	quickLookPrevious: "Archivo anterior",
+	quickLookNext: "Archivo siguiente",
+	quickLookPosition: "{current} de {total}",
+	quickLookUnavailable: "El archivo ya no está disponible",
+
+	filterScope: "Columnas abiertas · Nombres de archivo",
+	filterMatches: "Archivos coincidentes: {n} · Columnas abiertas",
+	searchVault: "Buscar en la bóveda",
+	searchVaultPlaceholder: "Buscar nombres y rutas de archivos…",
+	selectedActions: "Elementos seleccionados",
+	selectionCopied: "Copiados: {n}",
+	sortInherited: "Global: {sort}",
+	sortFolder: "Esta carpeta: {sort}",
+	sortFieldName: "Nombre",
+	sortFieldSize: "Tamaño",
+	undoMoveResult: "Deshacer completado: {restored} restaurados, {skipped} omitidos, {failed} fallidos",
+
 	lockColumnWidths: "Fijar el ancho de las columnas",
 	lockColumnWidthsDesc: "Evita cambiar automáticamente el ancho del panel al cambiar de archivo. Las columnas se pueden ajustar manualmente. Desactívalo para permitir el ajuste automático del panel.",
 	newNote: "Nueva nota", newFolder: "Nueva carpeta", reveal: "Mostrar el archivo activo",

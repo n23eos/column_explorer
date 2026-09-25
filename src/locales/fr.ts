@@ -1,6 +1,23 @@
 import type { Locale } from "./en";
 
 export const fr: Locale = {
+	quickLookPrevious: "Fichier précédent",
+	quickLookNext: "Fichier suivant",
+	quickLookPosition: "{current} sur {total}",
+	quickLookUnavailable: "Le fichier n’est plus disponible",
+
+	filterScope: "Colonnes ouvertes · Noms de fichiers",
+	filterMatches: "Fichiers correspondants : {n} · Colonnes ouvertes",
+	searchVault: "Rechercher dans le coffre",
+	searchVaultPlaceholder: "Rechercher des noms et chemins de fichiers…",
+	selectedActions: "Éléments sélectionnés",
+	selectionCopied: "Copiés : {n}",
+	sortInherited: "Global : {sort}",
+	sortFolder: "Ce dossier : {sort}",
+	sortFieldName: "Nom",
+	sortFieldSize: "Taille",
+	undoMoveResult: "Annulation terminée : {restored} restaurés, {skipped} ignorés, {failed} en échec",
+
 	lockColumnWidths: "Verrouiller la largeur des colonnes",
 	lockColumnWidthsDesc: "Empêche le redimensionnement automatique du panneau lors du changement de fichier. Les colonnes restent ajustables manuellement. Désactivez pour autoriser le réglage automatique du panneau.",
 	newNote: "Nouvelle note", newFolder: "Nouveau dossier", reveal: "Afficher le fichier actif",

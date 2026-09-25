@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { buildMobileToolbar } from "../src/mobile";
 import {
 	DEFAULT_MOBILE_ICON,
 	DEFAULT_MOBILE_SCALE,
@@ -16,6 +17,8 @@ import {
 	normalizeSettings,
 	parentSelection,
 } from "../src/pure";
+import { makeVault } from "./setup/vault";
+import { makeView } from "./setup/view";
 
 /** Свайп в контейнере шириной 400px по умолчанию. */
 function swipe(over: Partial<Parameters<typeof detectEdgeSwipe>[0]>) {
@@ -205,6 +208,32 @@ describe("mobileControlSize", () => {
 
 	test("uses the configured size when the container is not measured yet", () => {
 		expect(mobileControlSize(1.15, 0, 5)).toBe(51);
+	});
+});
+
+describe("mobile toolbar buttons", () => {
+	test("native-disabled navigation buttons cannot invoke history actions", () => {
+		const view = makeView(makeVault(["a.md"]));
+		let backCalls = 0;
+		let forwardCalls = 0;
+		Object.assign(view, {
+			canGoBack: () => false,
+			canGoForward: () => false,
+			isSearchOpen: () => false,
+			goBack: () => { backCalls++; },
+			goForward: () => { forwardCalls++; },
+		});
+		const toolbar = document.body.createDiv();
+
+		buildMobileToolbar(view, toolbar)();
+		const [back, forward] = Array.from(toolbar.querySelectorAll("button"));
+		back.click();
+		forward.click();
+
+		expect(back.disabled).toBe(true);
+		expect(forward.disabled).toBe(true);
+		expect(backCalls).toBe(0);
+		expect(forwardCalls).toBe(0);
 	});
 });
 
@@ -413,9 +442,10 @@ describe("errorMessage", () => {
 });
 
 describe("width lock settings migration", () => {
-	test("enables the lock for existing installations without changing saved widths", () => {
+	test("preserves auto-resize for existing installations without changing saved widths", () => {
 		const settings = normalizeSettings({ autoPanelResize: true, columnWidths: { "/": 310 } });
-		expect(settings.lockColumnWidths).toBe(true);
+		expect(settings.autoPanelResize).toBe(true);
+		expect(settings.lockColumnWidths).toBe(false);
 		expect(settings.columnWidths).toEqual({ "/": 310 });
 	});
 	test("retains an explicitly disabled lock and rejects invalid values", () => {

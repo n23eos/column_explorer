@@ -86,6 +86,36 @@ describe("renderColumnList", () => {
 	});
 });
 
+describe("column sort button", () => {
+	test("shows the effective global sort and marks it as inherited", () => {
+		const vault = makeVault(["notes/a.md"]);
+		const parent = container();
+
+		renderColumn(makeView(vault, { settings: { sortMode: "mtime-desc" } }), parent, folderOf(vault, "notes"), 0);
+
+		const button = parent.querySelector<HTMLButtonElement>(".column-explorer-sort-button");
+		const description = t("sortInherited", { sort: t("sortMtimeDesc") });
+		expect(button?.querySelector(".column-explorer-sort-label")?.textContent).toBe(`${t("modified")} ↓`);
+		expect(button?.getAttribute("aria-label")).toBe(description);
+		expect(button?.getAttribute("aria-haspopup")).toBe("menu");
+		expect(button?.title).toBe(description);
+		expect(button?.type).toBe("button");
+	});
+
+	test("shows a per-folder override and its direction", () => {
+		const vault = makeVault(["notes/a.md"]);
+		const parent = container();
+
+		renderColumn(makeView(vault, {
+			settings: { sortMode: "mtime-desc", columnSortModes: { notes: "name-asc" } },
+		}), parent, folderOf(vault, "notes"), 0);
+
+		const button = parent.querySelector<HTMLButtonElement>(".column-explorer-sort-button");
+		expect(button?.querySelector(".column-explorer-sort-label")?.textContent).toBe(`${t("sortFieldName")} ↑`);
+		expect(button?.getAttribute("aria-label")).toBe(t("sortFolder", { sort: t("sortNameAsc") }));
+	});
+});
+
 describe("special items", () => {
 	const specials = (path: string) => (path === RECENTS_PATH || path === CALENDAR_PATH ? path : null);
 

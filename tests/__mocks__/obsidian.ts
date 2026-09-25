@@ -8,7 +8,7 @@
  * `src/settings.ts` (ради DEFAULT_SETTINGS); всё остальное API сознательно
  * не воспроизводится.
  *
- * Подключается через `resolve.alias` в vitest.config.ts.
+ * Подключается через `resolve.alias` в vitest.config.mts.
  */
 
 export class TAbstractFile {
@@ -276,6 +276,9 @@ export class Modal extends Component {
 }
 
 export class FuzzySuggestModal<T> extends Modal {
+	inputEl: HTMLInputElement = document.createElement("input");
+	emptyStateText = "";
+	onOpen(): void { /* populated by Obsidian */ }
 	getItems(): T[] { return []; }
 	getItemText(_item: T): string { return ""; }
 	onChooseItem(_item: T): void { /* no-op */ }

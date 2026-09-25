@@ -1,6 +1,25 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
+
+### Added
+- Show the filter scope and matching file count, with a vault-wide file-name and path search.
+- Add a desktop selection toolbar for copying, moving and clearing selected items.
+- Show the effective folder sort order in each header with a directly accessible menu.
+- Browse visible files inside Quick Look with previous/next buttons, arrow keys and a position counter.
+
+### Fixed
+- Clear multi-selection with Escape before clearing the filter; remove stale selections and expose them to assistive technology.
+- Restore focus after changing folder sort order.
+- Discard stale asynchronous previews and handle files removed while Quick Look is open.
+- Report restored, skipped and failed items after undoing a move.
+- Disable unavailable mobile navigation buttons and name image/PDF previews for assistive technology.
+- Keep the mobile search field full width and sorting compact.
+
+### Build
+- Remove production bundle whitespace to retain the existing size limit.
+
+## [1.15.0] - 2026-09-19
 
 ### Changed
 - Simplify the desktop toolbar to Create, Sort and More, and group link/path formats under Copy as.
@@ -278,6 +297,11 @@ the same build under a version the scanner can pick up cleanly.
 
 Accepted into the Obsidian community plugin directory.
 
+[1.15.0]: https://github.com/n23eos/column_explorer/releases/tag/1.15.0
+[1.14.0]: https://github.com/n23eos/column_explorer/releases/tag/1.14.0
+[1.13.0]: https://github.com/n23eos/column_explorer/releases/tag/1.13.0
+[1.12.1]: https://github.com/n23eos/column_explorer/releases/tag/1.12.1
+[1.12.0]: https://github.com/n23eos/column_explorer/releases/tag/1.12.0
 [1.11.0]: https://github.com/n23eos/column_explorer/releases/tag/1.11.0
 [1.10.0]: https://github.com/n23eos/column_explorer/releases/tag/1.10.0
 [1.9.0]: https://github.com/n23eos/column_explorer/releases/tag/1.9.0

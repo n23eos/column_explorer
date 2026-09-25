@@ -1,6 +1,23 @@
 import type { Locale } from "./en";
 
 export const ko: Locale = {
+	quickLookPrevious: "이전 파일",
+	quickLookNext: "다음 파일",
+	quickLookPosition: "{current} / {total}",
+	quickLookUnavailable: "파일을 더 이상 사용할 수 없습니다",
+
+	filterScope: "열린 열 · 파일 이름",
+	filterMatches: "일치하는 파일: {n} · 열린 열",
+	searchVault: "보관함 검색",
+	searchVaultPlaceholder: "파일 이름과 경로 검색…",
+	selectedActions: "선택한 항목",
+	selectionCopied: "복사됨: {n}",
+	sortInherited: "전체: {sort}",
+	sortFolder: "이 폴더: {sort}",
+	sortFieldName: "이름",
+	sortFieldSize: "크기",
+	undoMoveResult: "실행 취소 완료: 복원 {restored}, 건너뜀 {skipped}, 실패 {failed}",
+
 	lockColumnWidths: "열 너비 고정",
 	lockColumnWidthsDesc: "파일 전환 시 패널 너비가 자동으로 바뀌지 않습니다. 열 너비는 수동으로 조절할 수 있습니다. 패널 자동 크기 조정을 허용하려면 끄세요.",
 	newNote: "새 노트", newFolder: "새 폴더", reveal: "현재 파일 표시",

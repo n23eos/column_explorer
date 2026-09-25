@@ -1,6 +1,23 @@
 import type { Locale } from "./en";
 
 export const ru: Locale = {
+	quickLookPrevious: "Предыдущий файл",
+	quickLookNext: "Следующий файл",
+	quickLookPosition: "{current} из {total}",
+	quickLookUnavailable: "Файл больше недоступен",
+
+	filterScope: "Открытые колонки · Имена файлов",
+	filterMatches: "Совпавших файлов: {n} · Открытые колонки",
+	searchVault: "Искать в хранилище",
+	searchVaultPlaceholder: "Поиск по именам и путям файлов…",
+	selectedActions: "Действия с выделенным",
+	selectionCopied: "Скопировано: {n}",
+	sortInherited: "Общая: {sort}",
+	sortFolder: "Для этой папки: {sort}",
+	sortFieldName: "Имя",
+	sortFieldSize: "Размер",
+	undoMoveResult: "Отмена завершена: восстановлено {restored}, пропущено {skipped}, с ошибкой {failed}",
+
 	lockColumnWidths: "Зафиксировать ширину колонок",
 	lockColumnWidthsDesc: "Не менять ширину панели автоматически при переключении файлов. Колонки можно менять вручную. Отключите фиксацию, чтобы разрешить настройку автоподгонки панели.",
 	newNote: "Новая заметка", newFolder: "Новая папка", reveal: "Показать активный файл",

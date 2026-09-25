@@ -6,7 +6,7 @@ import { FolderSuggestModal, IconSuggestModal, QuickLookModal } from "./modals";
 import { FOLDER_COLOR_KEYS, FolderColorKey, SortMode } from "./settings";
 import type { ColumnExplorerView } from "./view";
 
-function sortLabel(mode: SortMode): string {
+export function sortLabel(mode: SortMode): string {
 	const keys: Record<SortMode, string> = {
 		"name-asc": "sortNameAsc", "name-desc": "sortNameDesc",
 		"mtime-desc": "sortMtimeDesc", "mtime-asc": "sortMtimeAsc",
@@ -14,6 +14,47 @@ function sortLabel(mode: SortMode): string {
 		"size-desc": "sortSizeDesc", "size-asc": "sortSizeAsc",
 	};
 	return t(keys[mode]);
+}
+
+function setFolderSortMode(view: ColumnExplorerView, folder: TFolder, mode: SortMode | null) {
+	const rest = { ...view.plugin.settings.columnSortModes };
+	if (mode === null) delete rest[folder.path];
+	else rest[folder.path] = mode;
+	view.plugin.settings.columnSortModes = rest;
+	void view.plugin.saveSettings();
+	view.render();
+}
+
+function fillFolderSortItems(view: ColumnExplorerView, target: Menu, folder: TFolder, afterChange?: () => void) {
+	const apply = (mode: SortMode | null) => { setFolderSortMode(view, folder, mode); afterChange?.(); };
+	const current = view.plugin.settings.columnSortModes[folder.path];
+	target.addItem(i => i.setTitle(t("sortDefault")).setChecked(current === undefined)
+		.onClick(() => apply(null)));
+	for (const mode of SORT_MODE_VALUES) {
+		target.addItem(i => i.setTitle(sortLabel(mode)).setChecked(current === mode)
+			.onClick(() => apply(mode)));
+	}
+}
+
+/** Folder sort menu used by the visible header button. */
+export function showColumnSortMenu(
+	view: ColumnExplorerView,
+	e: MouseEvent | KeyboardEvent,
+	folder: TFolder,
+	anchor: HTMLElement,
+) {
+	const menu = new Menu();
+	fillFolderSortItems(view, menu, folder, () => {
+		view.columnsEl?.querySelector<HTMLElement>(
+			`.column-explorer-column[data-folder-path="${CSS.escape(folder.path)}"] .column-explorer-sort-button`
+		)?.focus();
+	});
+	if (e instanceof MouseEvent && e.detail > 0) {
+		menu.showAtMouseEvent(e);
+	} else {
+		const rect = anchor.getBoundingClientRect();
+		menu.showAtPosition({ x: rect.left, y: rect.bottom, width: rect.width }, anchor.ownerDocument);
+	}
 }
 
 function copyToClipboard(text: string, notice: string) {
@@ -135,7 +176,7 @@ export function showFileMenu(view: ColumnExplorerView, e: MouseEvent, f: TAbstra
 		// На телефоне колонки превью нет — Quick Look открывается из меню
 		if (Platform.isMobile) {
 			menu.addItem(i => i.setTitle(t("preview")).setIcon("eye")
-				.onClick(() => new QuickLookModal(app, view, f).open()));
+				.onClick(() => new QuickLookModal(app, view, f, view.quickLookFiles(f, depth)).open()));
 		}
 		menu.addItem(i => i.setTitle(t("openNewTab")).setIcon("file-plus-2")
 			.onClick(() => app.workspace.getLeaf("tab").openFile(f)));
@@ -250,21 +291,7 @@ export function showColumnHeaderMenu(view: ColumnExplorerView, e: MouseEvent, fo
 		.onClick(() => void view.createNote(folder, "canvas", "{}")));
 	menu.addSeparator();
 
-	const current = view.plugin.settings.columnSortModes[folder.path];
-	const setMode = (mode: SortMode | null) => {
-		const rest = { ...view.plugin.settings.columnSortModes };
-		if (mode === null) delete rest[folder.path];
-		else rest[folder.path] = mode;
-		view.plugin.settings.columnSortModes = rest;
-		void view.plugin.saveSettings();
-		view.render();
-	};
-	menu.addItem(i => i.setTitle(t("sortDefault")).setChecked(current === undefined)
-		.onClick(() => setMode(null)));
-	for (const mode of SORT_MODE_VALUES) {
-		menu.addItem(i => i.setTitle(sortLabel(mode)).setChecked(current === mode)
-			.onClick(() => setMode(mode)));
-	}
+	fillFolderSortItems(view, menu, folder);
 	menu.showAtMouseEvent(e);
 }
 

@@ -3,6 +3,23 @@
  * so a missing key is a compile error rather than a silent fallback.
  */
 export const en = {
+	quickLookPrevious: "Previous file",
+	quickLookNext: "Next file",
+	quickLookPosition: "{current} of {total}",
+	quickLookUnavailable: "File is no longer available",
+
+	filterScope: "Open columns · File names",
+	filterMatches: "Matching files: {n} · Open columns",
+	searchVault: "Search vault",
+	searchVaultPlaceholder: "Search file names and paths…",
+	selectedActions: "Selected items",
+	selectionCopied: "Copied: {n}",
+	sortInherited: "Global: {sort}",
+	sortFolder: "This folder: {sort}",
+	sortFieldName: "Name",
+	sortFieldSize: "Size",
+	undoMoveResult: "Undo complete: {restored} restored, {skipped} skipped, {failed} failed",
+
 	lockColumnWidths: "Lock column widths",
 	lockColumnWidthsDesc: "Prevent automatic panel resizing when switching files. You can still resize columns manually. Turn off to allow the Auto-resize panel setting.",
 	newNote: "New note", newFolder: "New folder", reveal: "Reveal active file",

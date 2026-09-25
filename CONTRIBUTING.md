@@ -37,11 +37,11 @@ The code lives in `src/`:
 ## Tests
 
 Tests cover all of `src` (locales aside — `tests/i18n.test.ts` checks their completeness
-directly). `npm run test:coverage` enforces the thresholds set in `vitest.config.ts`, and CI
+directly). `npm run test:coverage` enforces the thresholds set in `vitest.config.mts`, and CI
 runs it on every pull request.
 
 The npm `obsidian` package ships types only, so `tests/__mocks__/obsidian.ts` provides the
-runtime classes, wired up through `resolve.alias` in `vitest.config.ts`. DOM-level tests need
+runtime classes, wired up through `resolve.alias` in `vitest.config.mts`. DOM-level tests need
 two more pieces, both in `tests/setup/`:
 
 - `obsidian-dom.ts` — Obsidian's helpers on `HTMLElement.prototype` (`createDiv`, `addClass`,

@@ -4,7 +4,7 @@ import { BOOKMARKS_PATH, CALENDAR_PATH, DAY_PATH_PREFIX, DEFAULT_STORAGE_COLUMN_
 import { displayName, folderNoteOf, iconFor, isImageFile } from "./utils";
 import { addUpButton, setupLongPress } from "./mobile";
 import { notifyDragManager, setupColumnDnd } from "./dnd";
-import { showColumnHeaderMenu, showFileMenu, showFolderBackgroundMenu, showRecentsMenu } from "./menus";
+import { showColumnHeaderMenu, showColumnSortMenu, showFileMenu, showFolderBackgroundMenu, showRecentsMenu, sortLabel } from "./menus";
 import { MAX_COLUMN_WIDTH, MIN_COLUMN_WIDTH, ROOT_COLUMN_EXTRA_WIDTH } from "./settings";
 import type { ColumnExplorerView } from "./view";
 
@@ -32,6 +32,29 @@ export function renderColumn(view: ColumnExplorerView, container: HTMLElement, f
 		showColumnHeaderMenu(view, e, folder);
 	});
 
+	const folderSortMode = view.plugin.settings.columnSortModes[folder.path];
+	const effectiveSortMode = folderSortMode ?? view.plugin.settings.sortMode;
+	const [sortField, sortDirection] = effectiveSortMode.split("-") as ["name" | "mtime" | "ctime" | "size", "asc" | "desc"];
+	const sortFieldLabels = {
+		name: t("sortFieldName"),
+		mtime: t("modified"),
+		ctime: t("created"),
+		size: t("sortFieldSize"),
+	};
+	const fullSortLabel = sortLabel(effectiveSortMode);
+	const sortDescription = t(folderSortMode === undefined ? "sortInherited" : "sortFolder", { sort: fullSortLabel });
+	const sortButton = header.createEl("button", {
+		cls: "clickable-icon column-explorer-sort-button",
+		attr: { "aria-haspopup": "menu", "aria-label": sortDescription, title: sortDescription, type: "button" },
+	});
+	const sortSource = sortButton.createSpan({ cls: "column-explorer-sort-source", attr: { "aria-hidden": "true" } });
+	setIcon(sortSource, folderSortMode === undefined ? "globe" : "folder-cog");
+	sortButton.createSpan({
+		cls: "column-explorer-sort-label",
+		text: `${sortFieldLabels[sortField]} ${sortDirection === "asc" ? "↑" : "↓"}`,
+	});
+	sortButton.addEventListener("click", (e) => showColumnSortMenu(view, e, folder, sortButton));
+
 	const viewMode = view.plugin.settings.columnViewModes[folder.path] ?? "list";
 	const toggle = header.createEl("button", {
 		cls: "clickable-icon column-explorer-view-toggle",
@@ -55,7 +78,7 @@ export function renderColumn(view: ColumnExplorerView, container: HTMLElement, f
 		)?.focus();
 	});
 
-	const list = col.createDiv({ cls: "column-explorer-list", attr: { role: "listbox" } });
+	const list = col.createDiv({ cls: "column-explorer-list", attr: { role: "listbox", "aria-multiselectable": "true" } });
 	if (viewMode === "grid") list.addClass("is-grid");
 
 	/* Event delegation: one listener set per column, not per item. */
@@ -202,7 +225,8 @@ function buildItem(view: ColumnExplorerView, f: TAbstractFile, depth: number, is
 	item.draggable = !Platform.isMobile;
 
 	const selected = view.selection[depth] === f.path;
-	item.setAttribute("aria-selected", String(selected));
+	item.setAttribute("aria-selected", String(view.multiSelDepth === depth && view.multiSel.size > 0
+		? view.multiSel.has(f.path) : selected));
 	if (selected) item.addClass("is-selected");
 	if (selected && depth < view.selection.length - 1) item.addClass("is-ancestor");
 	if (view.multiSelDepth === depth && view.multiSel.has(f.path)) item.addClass("is-multi-selected");
@@ -357,7 +381,7 @@ export function renderFileListColumn(
 	header.createSpan({ cls: "column-explorer-column-title", text: title });
 	const countEl = header.createSpan({ cls: "column-explorer-column-count" });
 
-	const list = col.createDiv({ cls: "column-explorer-list", attr: { role: "listbox" } });
+	const list = col.createDiv({ cls: "column-explorer-list", attr: { role: "listbox", "aria-multiselectable": "true" } });
 	countEl.setText(String(favorites.length + files.length));
 
 	// Секция «Избранное» — сверху, над закладками, с подписью и разделителем

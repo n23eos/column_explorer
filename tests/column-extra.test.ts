@@ -259,7 +259,7 @@ describe("column list interaction", () => {
 	test("the view-mode toggle switches the column between list and grid", () => {
 		const { view, host } = columnView(["notes/a.md"], "notes");
 
-		host.querySelector<HTMLElement>(".column-explorer-column-header .clickable-icon")
+		host.querySelector<HTMLElement>(".column-explorer-column-header .column-explorer-view-toggle")
 			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
 		expect(view.plugin.settings.columnViewModes.notes).toBe("grid");

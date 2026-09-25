@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { Component, TFile } from "obsidian";
+import { Component, MarkdownRenderer, Platform, TFile } from "obsidian";
 import { renderPreviewColumn, renderPreviewContent } from "../src/preview";
 import { makeVault } from "./setup/vault";
 import { makeView } from "./setup/view";
@@ -40,7 +40,9 @@ describe("renderPreviewContent", () => {
 
 		renderPreviewContent(view, host, fileOf(vault, "pic.png"), new Component());
 
-		expect(host.querySelector("img.column-explorer-preview-image")?.getAttribute("src")).toBe("app://pic.png");
+		const image = host.querySelector("img.column-explorer-preview-image");
+		expect(image?.getAttribute("src")).toBe("app://pic.png");
+		expect(image?.getAttribute("alt")).toBe("pic.png");
 	});
 
 	test("renders an <audio> player for audio files", () => {
@@ -57,6 +59,18 @@ describe("renderPreviewContent", () => {
 		renderPreviewContent(view, host, fileOf(vault, "clip.mp4"), new Component());
 
 		expect(host.querySelector("video.column-explorer-preview-video")).not.toBeNull();
+	});
+
+	test("gives the desktop PDF frame an accessible title", () => {
+		const { view, host, vault } = setup(["report.pdf"]);
+		const wasDesktopApp = Platform.isDesktopApp;
+		Platform.isDesktopApp = true;
+		host.remove();
+
+		renderPreviewContent(view, host, fileOf(vault, "report.pdf"), new Component());
+		Platform.isDesktopApp = wasDesktopApp;
+
+		expect(host.querySelector("iframe.column-explorer-preview-pdf")?.getAttribute("title")).toContain("report");
 	});
 
 	test("falls back to a generic icon for files with no media preview", () => {
@@ -86,6 +100,26 @@ describe("renderPreviewContent", () => {
 		renderPreviewContent(view, host, fileOf(vault, "a.md"), new Component());
 
 		await vi.waitFor(() => expect(host.querySelector(".column-explorer-preview-md")).not.toBeNull());
+	});
+
+	test("removes a late markdown render and unloads its stale owner", async () => {
+		const { view, host, vault, contents } = setup(["a.md"], { showMarkdownPreview: true });
+		contents.set("a.md", "# Heading");
+		const owner = new Component();
+		const unload = vi.spyOn(owner, "unload");
+		let finishRender: (() => void) | undefined;
+		const render = vi.spyOn(MarkdownRenderer, "render").mockImplementation(() =>
+			new Promise<void>((resolve) => { finishRender = resolve; }));
+		let current = true;
+
+		renderPreviewContent(view, host, fileOf(vault, "a.md"), owner, () => current);
+		await vi.waitFor(() => expect(render).toHaveBeenCalledOnce());
+		current = false;
+		finishRender?.();
+
+		await vi.waitFor(() => expect(host.querySelector(".column-explorer-preview-md")).toBeNull());
+		expect(unload).toHaveBeenCalledOnce();
+		render.mockRestore();
 	});
 
 	test("skips the markdown snippet when the setting is off", async () => {

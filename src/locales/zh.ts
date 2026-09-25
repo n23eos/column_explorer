@@ -1,6 +1,23 @@
 import type { Locale } from "./en";
 
 export const zh: Locale = {
+	quickLookPrevious: "上一个文件",
+	quickLookNext: "下一个文件",
+	quickLookPosition: "{current} / {total}",
+	quickLookUnavailable: "文件已不可用",
+
+	filterScope: "已打开的列 · 文件名",
+	filterMatches: "匹配文件：{n} · 已打开的列",
+	searchVault: "搜索仓库",
+	searchVaultPlaceholder: "搜索文件名和路径…",
+	selectedActions: "所选项目",
+	selectionCopied: "已复制：{n}",
+	sortInherited: "全局：{sort}",
+	sortFolder: "此文件夹：{sort}",
+	sortFieldName: "名称",
+	sortFieldSize: "大小",
+	undoMoveResult: "撤销完成：已恢复 {restored}，已跳过 {skipped}，失败 {failed}",
+
 	lockColumnWidths: "固定列宽",
 	lockColumnWidthsDesc: "切换文件时不自动调整面板宽度。仍可手动调整列宽。关闭后允许面板自动调整设置生效。",
 	newNote: "新建笔记", newFolder: "新建文件夹", reveal: "定位当前文件",

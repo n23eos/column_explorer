@@ -22,7 +22,7 @@ function vibrate() {
 function toolbarButton(
 	view: ColumnExplorerView, parent: HTMLElement,
 	icon: string, label: string, onClick: (e: MouseEvent) => void
-): HTMLElement {
+): HTMLButtonElement {
 	const btn = parent.createEl("button", {
 		cls: "clickable-icon column-explorer-toolbar-btn",
 		attr: { "aria-label": label },
@@ -35,9 +35,10 @@ function toolbarButton(
 /** Кнопок в мобильном тулбаре — между ними делится доступная ширина. */
 export const MOBILE_TOOLBAR_BUTTONS = 5;
 
-function setEnabled(btn: HTMLElement, enabled: boolean) {
+function setEnabled(btn: HTMLButtonElement, enabled: boolean) {
 	btn.toggleClass("is-disabled", !enabled);
 	btn.setAttribute("aria-disabled", String(!enabled));
+	btn.disabled = !enabled;
 }
 
 /**
@@ -84,6 +85,7 @@ export function addUpButton(view: ColumnExplorerView, header: HTMLElement) {
 		attr: { "aria-label": t("navUp"), "aria-disabled": String(!enabled) },
 	});
 	setIcon(btn, "arrow-up");
+	btn.disabled = !enabled;
 	if (enabled) btn.addEventListener("click", () => view.goUp());
 	else btn.addClass("is-disabled");
 	header.prepend(btn);

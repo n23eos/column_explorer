@@ -79,7 +79,7 @@ test("calendar day files obey the same filter", async () => {
 test("desktop toolbar is compact and every action is a native button", async () => {
 	const { view } = await mount();
 	const buttons = Array.from(view.contentEl.querySelectorAll<HTMLElement>(".column-explorer-toolbar > .column-explorer-toolbar-btn"));
-	expect(buttons).toHaveLength(3);
+	expect(buttons).toHaveLength(4);
 	expect(buttons.every(el => el.tagName === "BUTTON" && el.tabIndex === 0)).toBe(true);
 	expect(view.contentEl.querySelector(".column-explorer-fav-btn")?.tagName).toBe("BUTTON");
 	expect(view.contentEl.querySelector(".column-explorer-view-toggle")?.tagName).toBe("BUTTON");

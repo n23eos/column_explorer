@@ -1,10 +1,11 @@
 {
 	"id": "column-explorer",
 	"name": "Column Explorer",
-	"version": "1.14.0",
+	"version": "1.15.0",
 	"minAppVersion": "1.8.7",
 	"description": "Browse your vault in Finder-style Miller columns with full file manager operations: create, rename, delete, move, drag and drop, multi-select and context menus.",
 	"author": "N23eos",
 	"authorUrl": "https://github.com/N23eos",
+	"fundingUrl": "https://etherscan.io/address/0x77777da54702AC8789D53fc7cC6201C29a1A88C4",
 	"isDesktopOnly": false
 }

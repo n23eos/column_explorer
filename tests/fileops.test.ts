@@ -264,6 +264,9 @@ describe("undo notice", () => {
 		await vi.waitFor(() => expect(fileManager.renamed).toHaveLength(2));
 
 		expect(fileManager.renamed[1]).toEqual({ from: "target/a.md", to: "a.md" });
+		await vi.waitFor(() => expect(createdNotices[createdNotices.length - 1]?.message).toBe(t("undoMoveResult", {
+			restored: 1, skipped: 0, failed: 0,
+		})));
 	});
 
 	test("undo skips a file whose original name is taken again", async () => {
@@ -275,7 +278,26 @@ describe("undo notice", () => {
 		await Promise.resolve();
 
 		expect(fileManager.renamed).toHaveLength(1);
+		await vi.waitFor(() => expect(createdNotices[createdNotices.length - 1]?.message).toBe(t("undoMoveResult", {
+			restored: 0, skipped: 1, failed: 0,
+		})));
 		void vault;
+	});
+
+	test("undo reports rename failures separately from skipped files", async () => {
+		const { app, vault } = makeFileOpsApp(["a.md", "target/"]);
+		await moveFiles(app, ["a.md"], folderOf(vault, "target"));
+		vault.rename("a.md", "target/a.md");
+		app.fileManager.renameFile = () => Promise.reject(new Error("locked"));
+
+		undoLink()?.dispatchEvent(new MouseEvent("click"));
+
+		await vi.waitFor(() => expect(createdNotices[createdNotices.length - 1]?.message).toBe(t("undoMoveResult", {
+			restored: 0, skipped: 0, failed: 1,
+		})));
+		expect(createdNotices.map((entry) => entry.message)).toContain(
+			t("moveFailed", { name: "a.md", error: "locked" })
+		);
 	});
 
 	test("clicking undo hides the notice", async () => {

@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { TFile, TFolder } from "obsidian";
 import { ColumnExplorerView } from "../src/view";
 import type ColumnExplorerPlugin from "../src/main";
+import { FolderSuggestModal } from "../src/modals";
+import { Menu } from "obsidian";
+import { RECENTS_PATH } from "../src/pure";
+import { Menu as MockMenu } from "./__mocks__/obsidian";
 import { makeVault } from "./setup/vault";
 import { makeApp, makePlugin } from "./setup/app";
 import { observerRegistry, resetObservers } from "./setup/obsidian-dom";
@@ -60,6 +64,27 @@ describe("onOpen", () => {
 		expect(view.contentEl.querySelector(".column-explorer-toolbar")).not.toBeNull();
 		expect(view.contentEl.querySelector(".column-explorer-search")).not.toBeNull();
 		expect(columnPaths(view)).toEqual(["/"]);
+	});
+
+	test("toolbar lock fixes the column count and unlock restores all columns", async () => {
+		const { view, plugin } = await mountView(["notes/sub/deep.md"]);
+		view.selection = ["notes"];
+		view.render();
+		const save = vi.spyOn(plugin, "saveSettings");
+		const button = view.contentEl.querySelector<HTMLButtonElement>('[data-action="lock-columns"]')!;
+		expect(button.getAttribute("aria-pressed")).toBe("false");
+		button.click();
+		expect(plugin.settings.lockedColumnCount).toBe(2);
+		expect(button.getAttribute("aria-pressed")).toBe("true");
+		expect(button.classList.contains("is-active")).toBe(true);
+		expect(save).toHaveBeenCalled();
+		view.selection = ["notes", "notes/sub"];
+		view.render();
+		expect(columnPaths(view)).toHaveLength(2);
+		button.click();
+		expect(plugin.settings.lockedColumnCount).toBeNull();
+		expect(button.getAttribute("aria-pressed")).toBe("false");
+		expect(columnPaths(view)).toEqual(["/", "notes", "notes/sub"]);
 	});
 
 	test("renders one column per level of the selection", async () => {
@@ -457,4 +482,130 @@ describe("more keyboard shortcuts", () => {
 
 		expect(app.fileManager.trashed.sort()).toEqual(["a.md", "b.md"]);
 	});
+});
+
+describe("daily usability", () => {
+	test("filter counts matching files across open columns and keeps folders navigable", async () => {
+		const { view } = await mountView(["match.md", "folder/match-child.md", "folder/other.md", "elsewhere/unopened-match.md"]);
+		view.selection = ["folder"];
+		view.render();
+		const input = view.contentEl.querySelector<HTMLInputElement>(".column-explorer-search")!;
+		input.value = "match";
+		input.dispatchEvent(new Event("input"));
+		expect(view.contentEl.querySelector(".column-explorer-filter-info [role=status]")?.textContent).toBe("Matching files: 2 · Open columns");
+		expect(view.childrenOf(view.app.vault.getRoot()).some(file => file.path === "elsewhere")).toBe(true);
+		view.clearFilter();
+		expect(view.contentEl.querySelector(".column-explorer-filter-info [role=status]")?.textContent).toBe("Open columns · File names");
+	});
+
+	test("desktop selection bar copies the selected paths and Escape clears selection before filter", async () => {
+		const { view, vault } = await mountView(["a.md", "ab.md", "b.md"]);
+		const input = view.contentEl.querySelector<HTMLInputElement>(".column-explorer-search")!;
+		input.value = "a";
+		input.dispatchEvent(new Event("input"));
+		view.toggleMulti(vault.getAbstractFileByPath("a.md")!, 0);
+		view.toggleMulti(vault.getAbstractFileByPath("ab.md")!, 0);
+		const bar = view.contentEl.querySelector<HTMLElement>(".column-explorer-selection-bar")!;
+		expect(bar.hidden).toBe(false);
+		expect(bar.textContent).toContain("2 selected");
+		const copy = vi.spyOn(view, "copyItems");
+		bar.querySelector<HTMLButtonElement>('button[aria-label="Copy"]')!.click();
+		expect(copy).toHaveBeenCalledWith(["a.md", "ab.md"], false);
+		keydown(view, "Escape");
+		expect(view.multiSel.size).toBe(0);
+		expect(bar.hidden).toBe(true);
+		expect(view.hasFilter()).toBe(true);
+		keydown(view, "Escape");
+		expect(view.hasFilter()).toBe(false);
+	});
+
+	test("selection bar close returns focus and clearMulti removes row highlights", async () => {
+		const { view, vault } = await mountView(["a.md"]);
+		view.toggleMulti(vault.getAbstractFileByPath("a.md")!, 0);
+		const close = view.contentEl.querySelector<HTMLButtonElement>('.column-explorer-selection-bar button[aria-label="Cancel selection"]')!;
+		close.focus(); close.click();
+		expect(document.activeElement).toBe(view.columnsEl);
+		expect(view.columnsEl.querySelector(".is-multi-selected")).toBeNull();
+	});
+
+	test("changing folder context prunes hidden multi-selection", async () => {
+		const { view, vault } = await mountView(["one/a.md", "two/b.md"]);
+		view.selection = ["one"]; view.render();
+		view.toggleMulti(vault.getAbstractFileByPath("one/a.md")!, 1);
+		view.selection = ["two"]; view.render();
+		expect(view.multiSel.size).toBe(0);
+		expect(view.contentEl.querySelector<HTMLElement>(".column-explorer-selection-bar")?.hidden).toBe(true);
+	});
+
+	test("Quick Look gets sorted filtered siblings including files beyond the rendered chunk", async () => {
+		const { view, vault } = await mountView(["b.md", "a.md", "folder/hidden.md", "c.md"], { sortMode: "name-desc" });
+		const file = vault.getAbstractFileByPath("b.md") as TFile;
+		expect(view.quickLookFiles(file).map(f => f.path)).toEqual(["c.md", "b.md", "a.md"]);
+		const input = view.contentEl.querySelector<HTMLInputElement>(".column-explorer-search")!;
+		input.value = "b"; input.dispatchEvent(new Event("input"));
+		expect(view.quickLookFiles(file)).toEqual([file]);
+	});
+});
+
+
+describe("usability integration regressions", () => {
+	test("moving via the selection bar uses a snapshot and clears the bar", async () => {
+		const { view, vault, app } = await mountView(["a.md", "b.md", "target/existing.md"]);
+		view.toggleMulti(vault.getAbstractFileByPath("a.md")!, 0);
+		view.toggleMulti(vault.getAbstractFileByPath("b.md")!, 0);
+		const open = vi.spyOn(FolderSuggestModal.prototype, "open").mockImplementation(() => { /* capture without opening */ });
+		view.contentEl.querySelector<HTMLButtonElement>('.column-explorer-selection-bar button[aria-label="Move to folder…"]')!.click();
+		const picker = open.mock.instances[0] as FolderSuggestModal;
+		expect(picker).toBeDefined();
+		picker.onChooseItem(folderOf(vault, "target"));
+		await new Promise(resolve => setTimeout(resolve, 0));
+		expect(app.fileManager.renamed).toEqual([{ from: "a.md", to: "target/a.md" }, { from: "b.md", to: "target/b.md" }]);
+		expect(view.multiSel.size).toBe(0);
+		open.mockRestore();
+	});
+
+	test("zero-result filter counts no folders and refreshes after matching-file deletion", async () => {
+		const { view, vault, app } = await mountView(["folder/a.md", "match.md"]);
+		const input = view.contentEl.querySelector<HTMLInputElement>(".column-explorer-search")!;
+		input.value = "match"; input.dispatchEvent(new Event("input"));
+		const file = vault.getAbstractFileByPath("match.md")!;
+		vault.index.delete(file.path);
+		file.parent!.children = file.parent!.children.filter(child => child !== file);
+		app.vault.trigger("delete", file);
+		expect(view.contentEl.querySelector(".column-explorer-filter-info [role=status]")?.textContent).toBe("Matching files: 0 · Open columns");
+	});
+
+	test("selection updates accessibility state and clears when a selected file disappears", async () => {
+		const { view, vault, app } = await mountView(["a.md", "b.md"]);
+		const file = vault.getAbstractFileByPath("a.md")!;
+		view.toggleMulti(file, 0);
+		expect(view.columnsEl.querySelector('[data-path="a.md"]')?.getAttribute("aria-selected")).toBe("true");
+		expect(view.columnsEl.querySelector('[role="listbox"]')?.getAttribute("aria-multiselectable")).toBe("true");
+		vault.index.delete(file.path);
+		file.parent!.children = file.parent!.children.filter(child => child !== file);
+		app.vault.trigger("delete", file);
+		expect(view.multiSel.size).toBe(0);
+		expect(view.contentEl.querySelector<HTMLElement>(".column-explorer-selection-bar")?.hidden).toBe(true);
+	});
+
+	test("folder sort restores focus to its replacement button", async () => {
+		const { view } = await mountView(["a.md", "b.md"]);
+		let menu: MockMenu | undefined;
+		const show = vi.spyOn(Menu.prototype, "showAtPosition").mockImplementation(function(this: Menu) { menu = this as unknown as MockMenu; return this; });
+		view.columnsEl.querySelector<HTMLButtonElement>(".column-explorer-sort-button")!.click();
+		menu!.items.find(item => item.title === "Name (Z → A)")!.callback!();
+		expect(document.activeElement).toBe(view.columnsEl.querySelector(".column-explorer-sort-button"));
+		expect(document.activeElement?.textContent).toBe("Name ↓");
+		show.mockRestore();
+	});
+});
+
+
+test("Quick Look respects the source column when a root file is also in Recents", async () => {
+	const { view, vault } = await mountView(["a.md", "b.md", "c.md"], { showRecents: true, recentFiles: ["c.md", "a.md"] });
+	const file = vault.getAbstractFileByPath("a.md") as TFile;
+	view.selection = [RECENTS_PATH, "a.md"]; view.render();
+	expect(view.quickLookFiles(file).map(f => f.path)).toEqual(["c.md", "a.md"]);
+	expect(view.quickLookFiles(file, 1).map(f => f.path)).toEqual(["c.md", "a.md"]);
+	expect(view.quickLookFiles(file, 0).map(f => f.path)).toEqual(["a.md", "b.md", "c.md"]);
 });

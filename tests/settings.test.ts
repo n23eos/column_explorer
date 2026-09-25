@@ -205,12 +205,19 @@ describe("panel auto-resize migration", () => {
 		expect(normalizeSettings({ ...normalized })).toEqual(normalized);
 	});
 
-	test("a pre-lock saved value keeps the locked upgrade behaviour", () => {
-		const normalized = normalizeSettings({ ...DEFAULT_SETTINGS, autoPanelResize: true, columnWidths: { "/": 310 } });
+	test("a pre-lock saved value keeps its auto-resize behaviour", () => {
+		const normalized = normalizeSettings({ autoPanelResize: true, columnWidths: { "/": 310 } });
+
+		expect(normalized.autoPanelResize).toBe(true);
+		expect(normalized.lockColumnWidths).toBe(false);
+		expect(normalized.columnWidths).toEqual({ "/": 310 });
+	});
+
+	test("a fresh install defaults to manual panel sizing", () => {
+		const normalized = normalizeSettings({});
 
 		expect(normalized.autoPanelResize).toBe(false);
 		expect(normalized.lockColumnWidths).toBe(true);
-		expect(normalized.columnWidths).toEqual({ "/": 310 });
 	});
 
 	test("the shared helper always writes an inverse legacy mirror", () => {

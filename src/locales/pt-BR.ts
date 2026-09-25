@@ -1,6 +1,23 @@
 import type { Locale } from "./en";
 
 export const ptBR: Locale = {
+	quickLookPrevious: "Arquivo anterior",
+	quickLookNext: "Próximo arquivo",
+	quickLookPosition: "{current} de {total}",
+	quickLookUnavailable: "O arquivo não está mais disponível",
+
+	filterScope: "Colunas abertas · Nomes de arquivos",
+	filterMatches: "Arquivos encontrados: {n} · Colunas abertas",
+	searchVault: "Pesquisar no cofre",
+	searchVaultPlaceholder: "Pesquisar nomes e caminhos de arquivos…",
+	selectedActions: "Itens selecionados",
+	selectionCopied: "Copiados: {n}",
+	sortInherited: "Global: {sort}",
+	sortFolder: "Esta pasta: {sort}",
+	sortFieldName: "Nome",
+	sortFieldSize: "Tamanho",
+	undoMoveResult: "Desfazer concluído: {restored} restaurados, {skipped} ignorados, {failed} com falha",
+
 	lockColumnWidths: "Fixar a largura das colunas",
 	lockColumnWidthsDesc: "Impede o redimensionamento automático do painel ao trocar de arquivo. As colunas continuam ajustáveis manualmente. Desative para permitir o ajuste automático do painel.",
 	newNote: "Nova nota", newFolder: "Nova pasta", reveal: "Mostrar o arquivo ativo",

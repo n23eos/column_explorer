@@ -147,7 +147,9 @@ export default class ColumnExplorerPlugin extends Plugin {
 		// начнут опираться CSS-переменные и запросы к vault
 		this.settings = {
 			...merged,
-			...normalizeSettings(merged as unknown as Record<string, unknown>),
+			// Normalize the persisted object itself so migrations can distinguish a
+			// missing legacy key from a newly supplied default.
+			...normalizeSettings(data ?? {}),
 			...normalizeMobileSettings(merged),
 		};
 		// Сид недавних только при ПЕРВОМ запуске (ключа ещё нет в data.json) —

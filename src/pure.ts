@@ -620,7 +620,11 @@ export function normalizeSettings(raw: Record<string, unknown>): NormalizedSetti
 	// `lockColumnWidths` used to override `autoPanelResize`. Collapse both saved
 	// flags into one runtime mode, while keeping the inverse legacy mirror so a
 	// downgrade and the next reload preserve the same effective behaviour.
-	const autoPanelResize = raw.autoPanelResize === true && raw.lockColumnWidths === false;
+	// Before the lock existed, autoPanelResize alone controlled the panel. A
+	// missing lock therefore means "use the saved auto-resize choice".
+	const hasLegacyLock = typeof raw.lockColumnWidths === "boolean";
+	const autoPanelResize = raw.autoPanelResize === true
+		&& (!hasLegacyLock || raw.lockColumnWidths === false);
 	return {
 		columnWidth: clampInt(raw.columnWidth, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH),
 		columnWidths: cleanWidths(raw.columnWidths),

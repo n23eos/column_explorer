@@ -406,15 +406,17 @@ describe("active-leaf-change", () => {
 });
 
 describe("column width lock persistence", () => {
-	test("enables the lock on upgrade and restores an explicitly disabled choice", async () => {
+	test("preserves auto-resize on upgrade and restores the saved canonical choice", async () => {
 		const { plugin } = await loadPlugin({ autoPanelResize: true, columnWidths: { "/": 310 } });
-		expect(plugin.settings.lockColumnWidths).toBe(true);
+		expect(plugin.settings.autoPanelResize).toBe(true);
+		expect(plugin.settings.lockColumnWidths).toBe(false);
 		expect(plugin.settings.columnWidths).toEqual({ "/": 310 });
-		setPanelAutoResize(plugin.settings, true);
+		setPanelAutoResize(plugin.settings, false);
 		await plugin.saveSettings();
 		const saved = (plugin as unknown as { savedData: ColumnExplorerSettings }).savedData;
 		const { plugin: reopened } = await loadPlugin(saved);
-		expect(reopened.settings.lockColumnWidths).toBe(false);
+		expect(reopened.settings.autoPanelResize).toBe(false);
+		expect(reopened.settings.lockColumnWidths).toBe(true);
 		expect(reopened.settings.columnWidths).toEqual({ "/": 310 });
 	});
 });

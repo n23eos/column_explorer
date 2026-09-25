@@ -5,6 +5,7 @@ import { availablePath, errorMessage } from "./pure";
 const UNDO_NOTICE_MS = 8000;
 
 interface MoveRecord { from: string; to: string }
+interface UndoMoveResult { restored: number; skipped: number; failed: number }
 
 /**
  * Move a set of paths into a target folder. Shared by drag & drop and
@@ -45,21 +46,32 @@ function showUndoMoveNotice(app: App, moves: MoveRecord[]) {
 	const notice = new Notice(frag, UNDO_NOTICE_MS);
 	undoBtn.addEventListener("click", () => {
 		notice.hide();
-		void undoMoves(app, moves);
+		void undoMoves(app, moves).then(({ restored, skipped, failed }) => {
+			new Notice(t("undoMoveResult", { restored, skipped, failed }));
+		});
 	});
 }
 
-async function undoMoves(app: App, moves: MoveRecord[]) {
+async function undoMoves(app: App, moves: MoveRecord[]): Promise<UndoMoveResult> {
+	let restored = 0;
+	let skipped = 0;
+	let failed = 0;
 	for (const move of moves) {
 		const f = app.vault.getAbstractFileByPath(move.to);
 		// Файл мог быть удалён/переименован, а исходное имя — занято заново
-		if (!f || app.vault.getAbstractFileByPath(move.from)) continue;
+		if (!f || app.vault.getAbstractFileByPath(move.from)) {
+			skipped++;
+			continue;
+		}
 		try {
 			await app.fileManager.renameFile(f, move.from);
+			restored++;
 		} catch (err) {
+			failed++;
 			new Notice(t("moveFailed", { name: f.name, error: errorMessage(err) }));
 		}
 	}
+	return { restored, skipped, failed };
 }
 
 /**

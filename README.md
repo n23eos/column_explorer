@@ -70,6 +70,7 @@ Worth knowing early: `Space` previews the selected file, right-clicking empty sp
 - **Folder notes** — optionally open the note named like its folder when selecting the folder
 - **Keyboard navigation** — `↑`/`↓` select, `→`/`←` drill in/out, `Home`/`End`/`PageUp`/`PageDown`, type-ahead (start typing to jump, like in Finder), `Enter` open, `Space` Quick Look, `F2` rename, `Delete` trash, `Ctrl`/`Cmd`+`A` select all in the column, `Ctrl`/`Cmd`+`D` duplicate, `Ctrl`/`Cmd`+`C`/`X`/`V` copy, cut and paste
 - **Back & forward** — navigation history buttons in the breadcrumbs bar
+- **Compact desktop toolbar** - Create, Sort and More keep frequent actions visible while panel sizing and column limits stay in the More menu
 - **Favorites** - star any file or folder (context menu, or the star button in the breadcrumbs bar); they sit atop the Quick access column
 - **Filter** - filters names in open columns, including Recents, Quick access and calendar-day files. It is not a vault-wide search; clear it with the cross button or Escape.
 - **Auto-reveal** — optionally follow the active editor tab
@@ -99,7 +100,7 @@ The first column can host four virtual rows, each toggleable and positionable in
   edited since you last opened them (by an agent, a bot, sync or an external editor). Opening a
   file clears both; the whole thing can be switched off in settings
 - **Item counts** — each column header shows how many items it lists
-- **Resizable columns** — drag the right edge of any column
+- **Resizable columns:** drag the right edge of any column. Manual widths are saved; optional automatic panel sizing is available in settings and the desktop More menu
 - **Localized** — English, Chinese (Simplified), German, Japanese, Korean, Brazilian Portuguese, Spanish, French, Italian and Russian, following Obsidian's own language setting
 
 ### File management
@@ -188,6 +189,14 @@ The desktop toolbar contains **Create**, **Sort** and **More**, followed by the 
 Calendar and Disk usage appear under **Tools** in the root column. Their existing visibility settings are preserved. Dependent options in settings appear only when the corresponding feature is enabled.
 
 Large folders load chunks around the selected file, including after Home or End. Moving between files keeps the existing folder columns alive. A hidden Disk usage chart postpones refreshes until it is reopened; word counting starts only when you choose **Words**.
+
+### Everyday navigation
+
+The filter shows how many files match in the open columns. Folders stay visible so you can keep navigating. **Search vault** carries the current query into a separate search for file names and paths across the vault, respecting excluded paths.
+
+On desktop, selecting multiple items shows a toolbar with a count, **Copy**, **Move to folder** and **Cancel selection**. **Escape** clears the selection first, then the filter. Each folder header shows its effective sort order; click it to change the order or restore the global default.
+
+**Quick Look** supports previous/next buttons and left/right arrows, with a position counter. It follows the current visible file order, skips folders and stops at the ends. Arrow keys remain available to focused media controls and input fields.
 
 ## More projects
 

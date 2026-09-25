@@ -1,6 +1,23 @@
 import type { Locale } from "./en";
 
 export const de: Locale = {
+	quickLookPrevious: "Vorherige Datei",
+	quickLookNext: "Nächste Datei",
+	quickLookPosition: "{current} von {total}",
+	quickLookUnavailable: "Datei ist nicht mehr verfügbar",
+
+	filterScope: "Offene Spalten · Dateinamen",
+	filterMatches: "Passende Dateien: {n} · Offene Spalten",
+	searchVault: "Vault durchsuchen",
+	searchVaultPlaceholder: "Dateinamen und Pfade suchen…",
+	selectedActions: "Ausgewählte Elemente",
+	selectionCopied: "Kopiert: {n}",
+	sortInherited: "Global: {sort}",
+	sortFolder: "Dieser Ordner: {sort}",
+	sortFieldName: "Name",
+	sortFieldSize: "Größe",
+	undoMoveResult: "Rückgängig abgeschlossen: {restored} wiederhergestellt, {skipped} übersprungen, {failed} fehlgeschlagen",
+
 	lockColumnWidths: "Spaltenbreiten fixieren",
 	lockColumnWidthsDesc: "Verhindert automatische Größenänderungen beim Dateiwechsel. Spalten bleiben manuell veränderbar. Deaktivieren, um die automatische Panelgröße zu erlauben.",
 	newNote: "Neue Notiz", newFolder: "Neuer Ordner", reveal: "Aktive Datei anzeigen",

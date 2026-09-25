@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { FileSystemAdapter, TAbstractFile, TFolder } from "obsidian";
+import { FileSystemAdapter, Platform, TAbstractFile, TFile, TFolder } from "obsidian";
 // Menu — из мока: тест читает накопленные пункты, которых нет в публичном API
 import { Menu, MenuItem, createdNotices, resetNotices } from "./__mocks__/obsidian";
 import {
 	showColumnHeaderMenu, showFileMenu, showFolderBackgroundMenu,
-	showMobileCreateMenu, showMobileMoreMenu, showRecentsMenu, showSortMenu,
+	showColumnSortMenu, showMobileCreateMenu, showMobileMoreMenu, showRecentsMenu, showSortMenu,
 } from "../src/menus";
 import { t } from "../src/i18n";
-import { FolderSuggestModal } from "../src/modals";
+import { FolderSuggestModal, QuickLookModal } from "../src/modals";
 import { makeVault } from "./setup/vault";
 import { makeView } from "./setup/view";
 
@@ -91,6 +91,27 @@ describe("showFileMenu on a file", () => {
 		expect(titles).toContain(t("duplicate"));
 		expect(titles).toContain(t("rename"));
 		expect(titles).toContain(t("delete"));
+	});
+
+	test("mobile Quick Look receives the visible file order", () => {
+		Platform.isMobile = true;
+		const open = vi.spyOn(QuickLookModal.prototype, "open").mockImplementation(() => { /* no-op */ });
+		try {
+			const { view, vault } = setup(["a.md", "b.md"]);
+			const file = vault.getAbstractFileByPath("a.md") as TFile;
+			const files = [file, vault.getAbstractFileByPath("b.md") as TFile];
+			const quickLookFiles = vi.fn(() => files);
+			Object.assign(view, { quickLookFiles });
+
+			showFileMenu(view, mouse(), file, 0);
+			clickItem(t("preview"));
+
+			expect(quickLookFiles).toHaveBeenCalledWith(file, 0);
+			expect(open).toHaveBeenCalledOnce();
+		} finally {
+			open.mockRestore();
+			Platform.isMobile = false;
+		}
 	});
 
 	test("pin adds the path without mutating the previous settings object", () => {
@@ -267,6 +288,23 @@ describe("column header menu", () => {
 		clickItem(t("sortDefault"));
 
 		expect(view.plugin.settings.columnSortModes).toEqual({});
+	});
+
+	test("the visible control opens the same sort actions from the keyboard", () => {
+		const { view, vault } = setup(["sub/a.md"]);
+		const anchor = document.body.createEl("button");
+
+		showColumnSortMenu(
+			view,
+			new KeyboardEvent("keydown", { key: "Enter" }),
+			vault.getAbstractFileByPath("sub") as TFolder,
+			anchor,
+		);
+
+		expect(menuTitles()).toContain(t("sortDefault"));
+		expect(menuTitles()).toContain(t("sortNameAsc"));
+		clickItem(t("sortSizeDesc"));
+		expect(view.plugin.settings.columnSortModes).toEqual({ sub: "size-desc" });
 	});
 });
 

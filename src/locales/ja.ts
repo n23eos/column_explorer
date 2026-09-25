@@ -1,6 +1,23 @@
 import type { Locale } from "./en";
 
 export const ja: Locale = {
+	quickLookPrevious: "前のファイル",
+	quickLookNext: "次のファイル",
+	quickLookPosition: "{current} / {total}",
+	quickLookUnavailable: "ファイルは利用できなくなりました",
+
+	filterScope: "開いている列 · ファイル名",
+	filterMatches: "一致するファイル：{n} · 開いている列",
+	searchVault: "保管庫を検索",
+	searchVaultPlaceholder: "ファイル名とパスを検索…",
+	selectedActions: "選択した項目",
+	selectionCopied: "コピー済み：{n}",
+	sortInherited: "全体：{sort}",
+	sortFolder: "このフォルダ：{sort}",
+	sortFieldName: "名前",
+	sortFieldSize: "サイズ",
+	undoMoveResult: "元に戻しました：復元 {restored}、スキップ {skipped}、失敗 {failed}",
+
 	lockColumnWidths: "列の幅を固定",
 	lockColumnWidthsDesc: "ファイル切り替え時にパネル幅を自動変更しません。列幅は手動で変更できます。パネルの自動調整を許可するにはオフにしてください。",
 	newNote: "新規ノート", newFolder: "新規フォルダ", reveal: "アクティブなファイルを表示",

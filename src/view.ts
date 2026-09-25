@@ -35,7 +35,8 @@ import { commitActiveResize, disconnectListObservers, refreshUnreadMarker, rende
 import { renderPreviewColumn } from "./preview";
 import { SunburstController } from "./storage/sunburst";
 import { showMobileCreateMenu, showSortMenu } from "./menus";
-import { ConfirmModal, QuickLookModal } from "./modals";
+import { VaultFileSearchModal } from "./search";
+import { ConfirmModal, FolderSuggestModal, QuickLookModal } from "./modals";
 import { copyFiles, duplicateFile, duplicateFolder, moveFiles, trashFiles } from "./fileops";
 import { clearActiveDrag, setupCrumbDropTarget, setupGlobalDnd } from "./dnd";
 import type ColumnExplorerPlugin from "./main";
@@ -68,6 +69,10 @@ export class ColumnExplorerView extends ItemView {
 	private searchInput!: HTMLInputElement;
 	private renamingPath: string | null = null;
 	private clearFilterBtn!: HTMLButtonElement;
+	private filterInfoEl!: HTMLElement;
+	private filterStatusEl!: HTMLElement;
+	private desktopSelectionBar?: HTMLElement;
+	private desktopSelectionCount?: HTMLElement;
 	/** Мобильная строка поиска под toolbar (на desktop поиск живёт в toolbar). */
 	private searchRowEl: HTMLElement | null = null;
 	private searchOpen = false;
@@ -167,6 +172,8 @@ export class ColumnExplorerView extends ItemView {
 		} else {
 			this.addToolbarButton(toolbar, "plus", t("create"), (e) => showMobileCreateMenu(this, e));
 			this.addToolbarButton(toolbar, "arrow-up-narrow-wide", t("sort"), (e) => showSortMenu(this, e));
+			const lock = this.addToolbarButton(toolbar, "lock-open", t("lockColumnCount", { n: 1 }), () => this.toggleColumnLock());
+			lock.dataset.action = "lock-columns";
 			const more = this.addToolbarButton(toolbar, "more-horizontal", t("more"), (e) => this.showMoreMenu(e));
 			more.dataset.action = "more";
 		}
@@ -192,16 +199,28 @@ export class ColumnExplorerView extends ItemView {
 		this.registerDomEvent(this.searchInput, "keydown", (e) => {
 			if (e.key !== "Escape") return;
 			e.preventDefault();
+			if (this.multiSel.size > 0) { this.clearMulti(); return; }
 			// Аппаратная клавиатура есть и на планшете — Escape закрывает строку целиком
 			if (this.searchOpen) { this.toggleMobileSearch(); return; }
 			this.clearFilter();
 			this.columnsEl.focus();
 		});
 
+		this.filterInfoEl = (this.searchRowEl ?? container).createDiv({ cls: "column-explorer-filter-info" });
+		this.filterStatusEl = this.filterInfoEl.createSpan({ attr: { role: "status", "aria-live": "polite" } });
+		const vaultSearch = this.filterInfoEl.createEl("button", {
+			text: t("searchVault"), attr: { type: "button" },
+		});
+		this.registerDomEvent(vaultSearch, "click", () => {
+			new VaultFileSearchModal(this, this.searchInput.value.trim()).open();
+		});
+
 		this.breadcrumbsEl = container.createDiv({
 			cls: "column-explorer-breadcrumbs",
 			attr: { role: "navigation", "aria-label": "Breadcrumbs" },
 		});
+
+		if (!Platform.isMobile) this.buildDesktopSelectionBar(container);
 
 		this.columnsEl = container.createDiv({ cls: "column-explorer-columns" });
 		this.columnsEl.tabIndex = 0;
@@ -288,6 +307,25 @@ export class ColumnExplorerView extends ItemView {
 		return btn;
 	}
 
+	private toggleColumnLock() {
+		const settings = this.plugin.settings;
+		settings.lockedColumnCount = settings.lockedColumnCount === null ? this.folderColumnCount() : null;
+		void this.plugin.saveSettings();
+		this.render();
+	}
+
+	private updateColumnLockButton() {
+		const button = this.contentEl.querySelector<HTMLElement>('[data-action="lock-columns"]');
+		if (!button) return;
+		const locked = this.plugin.settings.lockedColumnCount !== null;
+		setIcon(button, locked ? "lock" : "lock-open");
+		button.toggleClass("is-active", locked);
+		button.setAttribute("aria-pressed", String(locked));
+		const label = locked ? t("unlockColumnCount") : t("lockColumnCount", { n: this.folderColumnCount() });
+		button.setAttribute("aria-label", label);
+		button.setAttribute("title", label);
+	}
+
 	private showMoreMenu(event: MouseEvent) {
 		const menu = new Menu();
 		menu.addItem(item => item.setTitle(t("reveal")).setIcon("locate")
@@ -299,11 +337,7 @@ export class ColumnExplorerView extends ItemView {
 		menu.addItem(item => item.setTitle(settings.lockedColumnCount === null
 			? t("lockColumnCount", { n: this.folderColumnCount() }) : t("unlockColumnCount"))
 			.setIcon("columns-3").setChecked(settings.lockedColumnCount !== null)
-			.onClick(() => {
-				settings.lockedColumnCount = settings.lockedColumnCount === null ? this.folderColumnCount() : null;
-				void this.plugin.saveSettings();
-				this.render();
-			}));
+			.onClick(() => this.toggleColumnLock()));
 		menu.addItem(item => item.setTitle(t("panelAutoWidth")).setIcon("ruler")
 			.setChecked(settings.autoPanelResize).onClick(() => {
 				setPanelAutoResize(settings, !settings.autoPanelResize);
@@ -392,14 +426,80 @@ export class ColumnExplorerView extends ItemView {
 
 	/** Выделение меняет только классы элементов — полный render не нужен. */
 	private syncMultiSelDom() {
-		this.columnsEl.querySelectorAll(".column-explorer-item.is-multi-selected")
-			.forEach((el) => el.removeClass("is-multi-selected"));
-		for (const path of this.multiSel) {
-			this.columnsEl.querySelector<HTMLElement>(
-				`.column-explorer-item[data-path="${CSS.escape(path)}"]`
-			)?.addClass("is-multi-selected");
-		}
+		this.columnsEl.querySelectorAll<HTMLElement>(".column-explorer-item").forEach(item => {
+			const depth = Number(item.closest<HTMLElement>(".column-explorer-column")?.dataset.depth);
+			const multi = this.multiSelDepth === depth && this.multiSel.has(item.dataset.path ?? "");
+			item.toggleClass("is-multi-selected", multi);
+			item.setAttribute("aria-selected", String(this.multiSelDepth === depth && this.multiSel.size > 0
+				? multi : item.hasClass("is-selected")));
+		});
 		this.updateActionBar?.();
+		this.updateDesktopSelectionBar();
+	}
+
+	private buildDesktopSelectionBar(container: HTMLElement) {
+		const bar = container.createDiv({ cls: "column-explorer-selection-bar", attr: { role: "toolbar", "aria-label": t("selectedActions") } });
+		this.desktopSelectionBar = bar;
+		bar.hidden = true;
+		this.desktopSelectionCount = bar.createSpan({ attr: { role: "status", "aria-live": "polite" } });
+		const action = (icon: string, label: string, callback: () => void) => {
+			const btn = bar.createEl("button", { cls: "clickable-icon", attr: { type: "button", "aria-label": label, title: label } });
+			setIcon(btn, icon);
+			this.registerDomEvent(btn, "click", callback);
+		};
+		action("copy", t("copy"), () => {
+			this.copyItems([...this.multiSel], false);
+			new Notice(t("selectionCopied", { n: this.multiSel.size }));
+		});
+		action("folder-input", t("moveTo"), () => {
+			const paths = [...this.multiSel];
+			new FolderSuggestModal(this.app, target => {
+				void moveFiles(this.app, paths, target).then(() => this.clearMulti());
+			}, paths).open();
+		});
+		action("x", t("cancelSelection"), () => { this.clearMulti(); this.columnsEl.focus(); });
+		this.registerDomEvent(bar, "keydown", event => {
+			if (event.key !== "Escape") return;
+			event.preventDefault();
+			this.clearMulti();
+			this.columnsEl.focus();
+		});
+	}
+
+	private updateDesktopSelectionBar() {
+		if (!this.desktopSelectionBar) return;
+		const visible = this.multiSel.size > 0;
+		if (!visible && this.desktopSelectionBar.contains(this.desktopSelectionBar.ownerDocument.activeElement)) this.columnsEl.focus();
+		this.desktopSelectionBar.hidden = !visible;
+		this.desktopSelectionCount?.setText(t("selectedN", { n: this.multiSel.size }));
+	}
+
+	private refreshSelectionAndFilter() {
+		if (this.multiSel.size > 0) {
+			const column = this.columnsEl.querySelector(`[data-depth="${this.multiSelDepth}"]`);
+			const visible = new Set(column ? this.siblingsAt(this.multiSelDepth).map(item => item.path) : []);
+			for (const path of this.multiSel) if (!visible.has(path)) this.multiSel.delete(path);
+			if (this.multiSel.size === 0) this.clearMulti();
+		}
+		this.syncMultiSelDom();
+		this.filterInfoEl.hidden = this.searchInput.disabled;
+		if (!this.hasFilter()) { this.filterStatusEl.setText(t("filterScope")); return; }
+		const matches = new Set<string>();
+		this.columnsEl.querySelectorAll<HTMLElement>(".column-explorer-column[data-depth]").forEach(column => {
+			for (const item of this.siblingsAt(Number(column.dataset.depth))) {
+				if (this.app.vault.getAbstractFileByPath(item.path) instanceof TFile) matches.add(item.path);
+			}
+		});
+		this.filterStatusEl.setText(t("filterMatches", { n: matches.size }));
+	}
+
+	/** File order of the rendered list containing the requested preview. */
+	quickLookFiles(file: TFile, depth = Math.max(0, this.selection.length - 1)): TFile[] {
+		const files = this.siblingsAt(depth).flatMap(item => {
+			const entry = this.app.vault.getAbstractFileByPath(item.path);
+			return entry instanceof TFile ? [entry] : [];
+		});
+		return files.includes(file) ? files : [file];
 	}
 
 	/* -------------------------- shared accessors --------------------- */
@@ -458,6 +558,7 @@ export class ColumnExplorerView extends ItemView {
 		this.shiftAnchor = null;
 		// Нет выделения — нет и мобильного режима выделения
 		this.mobileSelActive = false;
+		if (this.columnsEl) this.syncMultiSelDom();
 	}
 
 	/** Number of folder columns for the current selection chain (root column included). */
@@ -489,6 +590,7 @@ export class ColumnExplorerView extends ItemView {
 			// она висит со старым «Выбрано N»
 			if (this.multiSel.size === 0) this.clearMulti();
 			this.updateActionBar?.();
+			this.updateDesktopSelectionBar();
 		}
 		return i >= 0;
 	}
@@ -572,6 +674,7 @@ export class ColumnExplorerView extends ItemView {
 			}
 		}
 		this.dirtyFolders.clear();
+		this.refreshSelectionAndFilter();
 	}
 
 	/** Vertical scroll of each column keyed by folder path — survives re-render. */
@@ -599,6 +702,7 @@ export class ColumnExplorerView extends ItemView {
 	}
 
 	render() {
+		this.updateColumnLockButton();
 		this.clearFilterBtn.hidden = !this.hasFilter();
 		const filterApplies = this.specialKind(this.selection[0]) !== "storage"
 			&& !(this.specialKind(this.selection[0]) === "calendar" && this.selection.length === 1);
@@ -707,6 +811,7 @@ export class ColumnExplorerView extends ItemView {
 		this.applyMobileScale();
 		this.updateMobileToolbar?.();
 		this.updateActionBar?.();
+		this.refreshSelectionAndFilter();
 		this.restoreScrollTops(scrollTops);
 		// Вправо прокручиваем только когда набор колонок изменился (открыли новую);
 		// при клике внутри тех же колонок скролл остаётся на месте
@@ -1235,6 +1340,8 @@ export class ColumnExplorerView extends ItemView {
 
 	revealFile(file: TAbstractFile | null) {
 		if (!file) return;
+		this.applyFilter.cancel();
+		this.searchInput.value = "";
 		if (this.hasFilter()) { this.filter = ""; this.filterMatcher = null; this.searchInput.value = ""; }
 		const chain: string[] = [];
 		let cur: TAbstractFile | null = file;
@@ -1363,7 +1470,12 @@ export class ColumnExplorerView extends ItemView {
 			this.exitMobileSelection();
 			return;
 		}
-		const depth = Math.max(0, this.selection.length - 1);
+		if (e.key === "Escape" && this.multiSel.size > 0) {
+			e.preventDefault();
+			this.clearMulti();
+			return;
+		}
+		const depth = this.multiSel.size > 0 ? this.multiSelDepth : Math.max(0, this.selection.length - 1);
 		const selectedPath = this.selection[depth];
 		const children = this.siblingsAt(depth);
 		const currentIdx = children.findIndex(c => c.path === selectedPath);
@@ -1421,7 +1533,7 @@ export class ColumnExplorerView extends ItemView {
 			// Во время type-ahead пробел — часть набираемого имени, не превью
 			e.preventDefault();
 			const f = selectedPath ? this.app.vault.getAbstractFileByPath(selectedPath) : null;
-			if (f instanceof TFile) new QuickLookModal(this.app, this, f).open();
+			if (f instanceof TFile) new QuickLookModal(this.app, this, f, this.quickLookFiles(f, depth)).open();
 		} else if (e.key === "Escape") {
 			// В диаграмме «Использование диска» Escape — шаг зума наружу
 			if (this.specialKind(this.selection[0]) === "storage" && this.sunburst?.zoomOut()) {
