@@ -1,6 +1,8 @@
 import type { Locale } from "./en";
 
 export const zh: Locale = {
+	collapseIntermediateColumns: "折叠中间列",
+	expandIntermediateColumns: "展开中间列",
 	quickLookPrevious: "上一个文件",
 	quickLookNext: "下一个文件",
 	quickLookPosition: "{current} / {total}",
@@ -8,8 +10,15 @@ export const zh: Locale = {
 
 	filterScope: "已打开的列 · 文件名",
 	filterMatches: "匹配文件：{n} · 已打开的列",
+	filterState: "文件状态",
+	filterAll: "全部",
+	filterNew: "新文件",
+	filterModified: "已修改",
+	filterUnread: "新文件和已修改",
 	searchVault: "搜索仓库",
 	searchVaultPlaceholder: "搜索文件名和路径…",
+	goToFolder: "转到文件夹",
+	folderSearchPlaceholder: "搜索文件夹名称和路径…",
 	selectedActions: "所选项目",
 	selectionCopied: "已复制：{n}",
 	sortInherited: "全局：{sort}",
@@ -29,6 +38,7 @@ export const zh: Locale = {
 	deleteN: "删除 {n} 个项目", duplicateN: "为 {n} 个项目创建副本",
 	moveTo: "移动到文件夹…", moveToPlaceholder: "选择目标文件夹…",
 	copyPath: "复制路径", copyFullPath: "复制完整路径", pathCopied: "路径已复制", copyFailed: "无法复制到剪贴板",
+	copyPartialPreserved: "复制失败。临时副本已保留在“{path}”中。",
 	untitled: "未命名", newFolderName: "新建文件夹",
 	cantMoveIntoSelf: "无法将文件夹移动到其自身内部",
 	alreadyExists: "目标文件夹中已存在“{name}”",

@@ -1,6 +1,8 @@
 import type { Locale } from "./en";
 
 export const ja: Locale = {
+	collapseIntermediateColumns: "中間の列を折りたたむ",
+	expandIntermediateColumns: "中間の列を展開する",
 	quickLookPrevious: "前のファイル",
 	quickLookNext: "次のファイル",
 	quickLookPosition: "{current} / {total}",
@@ -8,8 +10,15 @@ export const ja: Locale = {
 
 	filterScope: "開いている列 · ファイル名",
 	filterMatches: "一致するファイル：{n} · 開いている列",
+	filterState: "ファイルの状態",
+	filterAll: "すべて",
+	filterNew: "新規",
+	filterModified: "更新あり",
+	filterUnread: "新規と更新あり",
 	searchVault: "保管庫を検索",
 	searchVaultPlaceholder: "ファイル名とパスを検索…",
+	goToFolder: "フォルダーに移動",
+	folderSearchPlaceholder: "フォルダー名とパスを検索…",
 	selectedActions: "選択した項目",
 	selectionCopied: "コピー済み：{n}",
 	sortInherited: "全体：{sort}",
@@ -29,6 +38,7 @@ export const ja: Locale = {
 	deleteN: "{n} 件を削除", duplicateN: "{n} 件を複製",
 	moveTo: "フォルダへ移動…", moveToPlaceholder: "移動先のフォルダを選択…",
 	copyPath: "パスをコピー", copyFullPath: "完全なパスをコピー", pathCopied: "パスをコピーしました", copyFailed: "クリップボードにコピーできませんでした",
+	copyPartialPreserved: "コピーに失敗しました。一時コピーを「{path}」に保存しました。",
 	untitled: "無題", newFolderName: "新規フォルダ",
 	cantMoveIntoSelf: "フォルダを自身の中へは移動できません",
 	alreadyExists: "移動先のフォルダには「{name}」が既にあります",

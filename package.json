@@ -1,6 +1,6 @@
 {
   "name": "obsidian-column-explorer",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "Finder-style Miller-columns file explorer for Obsidian",
   "main": "main.js",
   "scripts": {

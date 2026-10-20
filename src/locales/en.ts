@@ -3,6 +3,8 @@
  * so a missing key is a compile error rather than a silent fallback.
  */
 export const en = {
+	collapseIntermediateColumns: "Collapse intermediate columns",
+	expandIntermediateColumns: "Expand intermediate columns",
 	quickLookPrevious: "Previous file",
 	quickLookNext: "Next file",
 	quickLookPosition: "{current} of {total}",
@@ -10,8 +12,15 @@ export const en = {
 
 	filterScope: "Open columns · File names",
 	filterMatches: "Matching files: {n} · Open columns",
+	filterState: "File status",
+	filterAll: "All",
+	filterNew: "New",
+	filterModified: "Modified",
+	filterUnread: "New and modified",
 	searchVault: "Search vault",
 	searchVaultPlaceholder: "Search file names and paths…",
+	goToFolder: "Go to folder",
+	folderSearchPlaceholder: "Search folder names and paths…",
 	selectedActions: "Selected items",
 	selectionCopied: "Copied: {n}",
 	sortInherited: "Global: {sort}",
@@ -31,6 +40,7 @@ export const en = {
 	deleteN: "Delete {n} items", duplicateN: "Duplicate {n} items",
 	moveTo: "Move to folder…", moveToPlaceholder: "Choose target folder…",
 	copyPath: "Copy path", copyFullPath: "Copy full path", pathCopied: "Path copied", copyFailed: "Couldn't copy to clipboard",
+	copyPartialPreserved: "Copying failed. The temporary copy was preserved at \"{path}\".",
 	untitled: "Untitled", newFolderName: "New folder",
 	cantMoveIntoSelf: "Cannot move a folder into itself",
 	alreadyExists: "“{name}” already exists in the target folder",

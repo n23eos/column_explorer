@@ -253,11 +253,44 @@ describe("showFileMenu with a multi-selection", () => {
 	// мобильная панель действий их дублируют
 	test("bulk duplicate covers folders as well as files", async () => {
 		const { view, vault } = setup(["docs/note.md", "a.md"]);
-		const copied: string[] = [];
-		const createdFolders: string[] = [];
+		const parentFor = (path: string): TFolder => {
+			const slash = path.lastIndexOf("/");
+			const parent = vault.getAbstractFileByPath(slash === -1 ? "/" : path.slice(0, slash));
+			if (!(parent instanceof TFolder)) throw new Error(`missing parent for ${path}`);
+			return parent;
+		};
+		const addFolder = (path: string): TFolder => {
+			const folder = new TFolder();
+			folder.path = path;
+			folder.name = path.slice(path.lastIndexOf("/") + 1);
+			folder.parent = parentFor(path);
+			folder.parent.children.push(folder);
+			vault.index.set(path, folder);
+			return folder;
+		};
+		const addFile = (source: TFile, path: string): TFile => {
+			const file = new TFile();
+			file.path = path;
+			file.name = path.slice(path.lastIndexOf("/") + 1);
+			const dot = file.name.lastIndexOf(".");
+			file.basename = dot > 0 ? file.name.slice(0, dot) : file.name;
+			file.extension = dot > 0 ? file.name.slice(dot + 1) : "";
+			file.stat = { ...source.stat };
+			file.parent = parentFor(path);
+			file.parent.children.push(file);
+			vault.index.set(path, file);
+			return file;
+		};
 		Object.assign(view.app.vault as unknown as Record<string, unknown>, {
-			copy: (f: TAbstractFile, path: string) => { copied.push(path); return Promise.resolve(); },
-			createFolder: (path: string) => { createdFolders.push(path); return Promise.resolve(); },
+			getAllLoadedFiles: () => [...vault.index.values()],
+			copy: (f: TFile, path: string) => Promise.resolve(addFile(f, path)),
+			createFolder: (path: string) => Promise.resolve(addFolder(path)),
+		});
+		Object.assign(view.app.fileManager as object, {
+			renameFile: (file: TAbstractFile, path: string) => {
+				vault.rename(file.path, path);
+				return Promise.resolve();
+			},
 		});
 		view.multiSelDepth = 0;
 		view.multiSel.add("docs");
@@ -265,9 +298,11 @@ describe("showFileMenu with a multi-selection", () => {
 
 		showFileMenu(view, mouse(), vault.getAbstractFileByPath("a.md") as TAbstractFile, 0);
 		clickItem(t("duplicateN", { n: 2 }));
-		await vi.waitFor(() => expect(copied).toContain("a copy.md"));
+		await vi.waitFor(() => expect(vault.getAbstractFileByPath("a copy.md")).toBeInstanceOf(TFile));
 
-		expect(createdFolders).toEqual(["docs copy"]);
+		expect(vault.getAbstractFileByPath("docs copy/note.md")).toBeInstanceOf(TFile);
+		expect(vault.getAbstractFileByPath("docs/note.md")).toBeInstanceOf(TFile);
+		expect(vault.getAbstractFileByPath("a.md")).toBeInstanceOf(TFile);
 	});
 });
 

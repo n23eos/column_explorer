@@ -1,6 +1,8 @@
 import type { Locale } from "./en";
 
 export const ptBR: Locale = {
+	collapseIntermediateColumns: "Recolher colunas intermediárias",
+	expandIntermediateColumns: "Expandir colunas intermediárias",
 	quickLookPrevious: "Arquivo anterior",
 	quickLookNext: "Próximo arquivo",
 	quickLookPosition: "{current} de {total}",
@@ -8,8 +10,15 @@ export const ptBR: Locale = {
 
 	filterScope: "Colunas abertas · Nomes de arquivos",
 	filterMatches: "Arquivos encontrados: {n} · Colunas abertas",
+	filterState: "Status do arquivo",
+	filterAll: "Todos",
+	filterNew: "Novos",
+	filterModified: "Modificados",
+	filterUnread: "Novos e modificados",
 	searchVault: "Pesquisar no cofre",
 	searchVaultPlaceholder: "Pesquisar nomes e caminhos de arquivos…",
+	goToFolder: "Ir para a pasta",
+	folderSearchPlaceholder: "Pesquisar nomes e caminhos de pastas…",
 	selectedActions: "Itens selecionados",
 	selectionCopied: "Copiados: {n}",
 	sortInherited: "Global: {sort}",
@@ -29,6 +38,7 @@ export const ptBR: Locale = {
 	deleteN: "Excluir {n} itens", duplicateN: "Duplicar {n} itens",
 	moveTo: "Mover para a pasta…", moveToPlaceholder: "Escolha a pasta de destino…",
 	copyPath: "Copiar caminho", copyFullPath: "Copiar caminho completo", pathCopied: "Caminho copiado", copyFailed: "Não foi possível copiar para a área de transferência",
+	copyPartialPreserved: "A cópia falhou. A cópia temporária foi preservada em \"{path}\".",
 	untitled: "Sem título", newFolderName: "Nova pasta",
 	cantMoveIntoSelf: "Não é possível mover uma pasta para dentro dela mesma",
 	alreadyExists: "“{name}” já existe na pasta de destino",

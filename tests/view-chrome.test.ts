@@ -310,3 +310,53 @@ describe("column width lock", () => {
 		await view.onClose();
 	});
 });
+
+describe("collapse intermediate columns", () => {
+	const depths = (view: ColumnExplorerView) => Array.from(view.columnsEl.querySelectorAll<HTMLElement>(".column-explorer-column")).map(col => col.dataset.depth);
+	const toggle = (view: ColumnExplorerView) => view.contentEl.querySelector<HTMLButtonElement>('[data-action="collapse-columns"]')!.click();
+
+	test("keeps root and deepest folder, preserves selection and restores the chain", async () => {
+		const { view, plugin } = await mount(["a/b/c/d.md"], { showPreview: false });
+		view.selection = ["a", "a/b", "a/b/c", "a/b/c/d.md"];
+		view.render();
+		expect(depths(view)).toEqual(["0", "1", "2", "3"]);
+		const button = view.contentEl.querySelector<HTMLButtonElement>('[data-action="collapse-columns"]')!;
+		expect(button.parentElement!.firstElementChild).toBe(button);
+		toggle(view);
+		expect(depths(view)).toEqual(["0", "3"]);
+		expect(view.selection).toEqual(["a", "a/b", "a/b/c", "a/b/c/d.md"]);
+		expect(button.getAttribute("aria-pressed")).toBe("true");
+		expect(button.title).toBe(t("expandIntermediateColumns"));
+		expect(plugin.settings.lockedColumnCount).toBeNull();
+		toggle(view);
+		expect(depths(view)).toEqual(["0", "1", "2", "3"]);
+		expect(button.getAttribute("aria-pressed")).toBe("false");
+	});
+
+	test("follows navigation and persists separately from the existing lock", async () => {
+		const { view, plugin } = await mount(["a/b/c/d.md"], { lockedColumnCount: 3 });
+		view.selection = ["a", "a/b"];
+		view.render();
+		toggle(view);
+		view.selection.push("a/b/c");
+		view.render();
+		expect(depths(view)).toEqual(["0", "3"]);
+		const state = view.getState();
+		toggle(view);
+		expect(depths(view)).toEqual(["0", "1", "3"]);
+		await view.setState(state, {} as never);
+		expect(depths(view)).toEqual(["0", "3"]);
+		expect(plugin.settings.lockedColumnCount).toBe(3);
+		view.selection = [];
+		view.render();
+		expect(depths(view)).toEqual(["0"]);
+	});
+
+	test("does not add the desktop control on mobile", async () => {
+		Platform.isMobile = true;
+		const { view } = await mount(["a/b/c.md"]);
+		await view.setState({ selection: ["a", "a/b"], intermediateColumnsCollapsed: true }, {} as never);
+		expect(view.contentEl.querySelector('[data-action="collapse-columns"]')).toBeNull();
+		expect(depths(view)).toEqual(["2"]);
+	});
+});

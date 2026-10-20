@@ -1,6 +1,8 @@
 import type { Locale } from "./en";
 
 export const ko: Locale = {
+	collapseIntermediateColumns: "중간 열 접기",
+	expandIntermediateColumns: "중간 열 펼치기",
 	quickLookPrevious: "이전 파일",
 	quickLookNext: "다음 파일",
 	quickLookPosition: "{current} / {total}",
@@ -8,8 +10,15 @@ export const ko: Locale = {
 
 	filterScope: "열린 열 · 파일 이름",
 	filterMatches: "일치하는 파일: {n} · 열린 열",
+	filterState: "파일 상태",
+	filterAll: "모두",
+	filterNew: "새 파일",
+	filterModified: "수정됨",
+	filterUnread: "새 파일 및 수정됨",
 	searchVault: "보관함 검색",
 	searchVaultPlaceholder: "파일 이름과 경로 검색…",
+	goToFolder: "폴더로 이동",
+	folderSearchPlaceholder: "폴더 이름과 경로 검색…",
 	selectedActions: "선택한 항목",
 	selectionCopied: "복사됨: {n}",
 	sortInherited: "전체: {sort}",
@@ -29,6 +38,7 @@ export const ko: Locale = {
 	deleteN: "{n}개 항목 삭제", duplicateN: "{n}개 항목 복제",
 	moveTo: "폴더로 이동…", moveToPlaceholder: "대상 폴더 선택…",
 	copyPath: "경로 복사", copyFullPath: "전체 경로 복사", pathCopied: "경로를 복사했습니다", copyFailed: "클립보드에 복사하지 못했습니다",
+	copyPartialPreserved: "복사하지 못했습니다. 임시 복사본을 \"{path}\"에 보존했습니다.",
 	untitled: "제목 없음", newFolderName: "새 폴더",
 	cantMoveIntoSelf: "폴더를 자기 자신 안으로 옮길 수 없습니다",
 	alreadyExists: "대상 폴더에 “{name}”이(가) 이미 있습니다",

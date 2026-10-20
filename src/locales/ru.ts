@@ -1,6 +1,8 @@
 import type { Locale } from "./en";
 
 export const ru: Locale = {
+	collapseIntermediateColumns: "Свернуть промежуточные колонки",
+	expandIntermediateColumns: "Развернуть промежуточные колонки",
 	quickLookPrevious: "Предыдущий файл",
 	quickLookNext: "Следующий файл",
 	quickLookPosition: "{current} из {total}",
@@ -8,8 +10,15 @@ export const ru: Locale = {
 
 	filterScope: "Открытые колонки · Имена файлов",
 	filterMatches: "Совпавших файлов: {n} · Открытые колонки",
+	filterState: "Состояние файла",
+	filterAll: "Все",
+	filterNew: "Новые",
+	filterModified: "Изменённые",
+	filterUnread: "Новые и изменённые",
 	searchVault: "Искать в хранилище",
 	searchVaultPlaceholder: "Поиск по именам и путям файлов…",
+	goToFolder: "Перейти к папке",
+	folderSearchPlaceholder: "Поиск по именам и путям папок…",
 	selectedActions: "Действия с выделенным",
 	selectionCopied: "Скопировано: {n}",
 	sortInherited: "Общая: {sort}",
@@ -29,6 +38,7 @@ export const ru: Locale = {
 	deleteN: "Удалить {n} элементов", duplicateN: "Дублировать элементов: {n}",
 	moveTo: "Переместить в папку…", moveToPlaceholder: "Выберите папку…",
 	copyPath: "Скопировать путь", copyFullPath: "Скопировать полный путь", pathCopied: "Путь скопирован", copyFailed: "Не удалось скопировать в буфер обмена",
+	copyPartialPreserved: "Копирование не удалось. Временная копия сохранена в «{path}».",
 	untitled: "Без названия", newFolderName: "Новая папка",
 	cantMoveIntoSelf: "Нельзя переместить папку внутрь самой себя",
 	alreadyExists: "В целевой папке уже есть «{name}»",

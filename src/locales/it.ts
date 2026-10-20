@@ -1,6 +1,8 @@
 import type { Locale } from "./en";
 
 export const it: Locale = {
+	collapseIntermediateColumns: "Comprimi colonne intermedie",
+	expandIntermediateColumns: "Espandi colonne intermedie",
 	quickLookPrevious: "File precedente",
 	quickLookNext: "File successivo",
 	quickLookPosition: "{current} di {total}",
@@ -8,8 +10,15 @@ export const it: Locale = {
 
 	filterScope: "Colonne aperte · Nomi dei file",
 	filterMatches: "File corrispondenti: {n} · Colonne aperte",
+	filterState: "Stato del file",
+	filterAll: "Tutti",
+	filterNew: "Nuovi",
+	filterModified: "Modificati",
+	filterUnread: "Nuovi e modificati",
 	searchVault: "Cerca nel vault",
 	searchVaultPlaceholder: "Cerca nomi e percorsi dei file…",
+	goToFolder: "Vai alla cartella",
+	folderSearchPlaceholder: "Cerca nomi e percorsi delle cartelle…",
 	selectedActions: "Elementi selezionati",
 	selectionCopied: "Copiati: {n}",
 	sortInherited: "Globale: {sort}",
@@ -29,6 +38,7 @@ export const it: Locale = {
 	deleteN: "Elimina {n} elementi", duplicateN: "Duplica {n} elementi",
 	moveTo: "Sposta nella cartella…", moveToPlaceholder: "Scegli la cartella di destinazione…",
 	copyPath: "Copia il percorso", copyFullPath: "Copia il percorso completo", pathCopied: "Percorso copiato", copyFailed: "Impossibile copiare negli appunti",
+	copyPartialPreserved: "Copia non riuscita. La copia temporanea è stata conservata in «{path}».",
 	untitled: "Senza titolo", newFolderName: "Nuova cartella",
 	cantMoveIntoSelf: "Impossibile spostare una cartella dentro se stessa",
 	alreadyExists: "«{name}» esiste già nella cartella di destinazione",

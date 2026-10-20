@@ -1,6 +1,8 @@
 import type { Locale } from "./en";
 
 export const fr: Locale = {
+	collapseIntermediateColumns: "Replier les colonnes intermédiaires",
+	expandIntermediateColumns: "Déplier les colonnes intermédiaires",
 	quickLookPrevious: "Fichier précédent",
 	quickLookNext: "Fichier suivant",
 	quickLookPosition: "{current} sur {total}",
@@ -8,8 +10,15 @@ export const fr: Locale = {
 
 	filterScope: "Colonnes ouvertes · Noms de fichiers",
 	filterMatches: "Fichiers correspondants : {n} · Colonnes ouvertes",
+	filterState: "État du fichier",
+	filterAll: "Tous",
+	filterNew: "Nouveaux",
+	filterModified: "Modifiés",
+	filterUnread: "Nouveaux et modifiés",
 	searchVault: "Rechercher dans le coffre",
 	searchVaultPlaceholder: "Rechercher des noms et chemins de fichiers…",
+	goToFolder: "Aller au dossier",
+	folderSearchPlaceholder: "Rechercher des noms et chemins de dossiers…",
 	selectedActions: "Éléments sélectionnés",
 	selectionCopied: "Copiés : {n}",
 	sortInherited: "Global : {sort}",
@@ -29,6 +38,7 @@ export const fr: Locale = {
 	deleteN: "Supprimer {n} éléments", duplicateN: "Dupliquer {n} éléments",
 	moveTo: "Déplacer vers le dossier…", moveToPlaceholder: "Choisissez le dossier de destination…",
 	copyPath: "Copier le chemin", copyFullPath: "Copier le chemin complet", pathCopied: "Chemin copié", copyFailed: "Impossible de copier dans le presse-papiers",
+	copyPartialPreserved: "La copie a échoué. La copie temporaire a été conservée dans « {path} ».",
 	untitled: "Sans titre", newFolderName: "Nouveau dossier",
 	cantMoveIntoSelf: "Impossible de déplacer un dossier dans lui-même",
 	alreadyExists: "« {name} » existe déjà dans le dossier de destination",

@@ -198,6 +198,14 @@ On desktop, selecting multiple items shows a toolbar with a count, **Copy**, **M
 
 **Quick Look** supports previous/next buttons and left/right arrows, with a position counter. It follows the current visible file order, skips folders and stops at the ends. Arrow keys remain available to focused media controls and input fields.
 
+### Folder navigation and unread filters
+
+**Go to folder** opens a separate search for folder names and full paths. Choose a result to reveal its columns without opening another note. The same action is available in the command palette. Excluded folders stay out of the results; the existing file search is unchanged.
+
+The file-state selector offers **All files**, **New**, **Modified**, and **New or modified**. It filters the open columns together with the name filter, while folders remain available for navigation. The default is **All files**, and this temporary filter does not change saved settings. Clear or Escape resets both filters after clearing any multi-selection. Read state uses the existing unread markers and does not identify who edited a file.
+
+Cut/Paste keeps unsuccessful items available for retry after a conflict or error. Folder copies are prepared in a temporary sibling folder and published only after all children are copied. If copying fails, the temporary folder is preserved and reported by path. No automatic deletion is attempted, so edits made during the operation are retained. Retrying can still use the intended final folder name. Copying or duplicating the vault root is not allowed.
+
 ## More projects
 
 ### Obsidian plugins

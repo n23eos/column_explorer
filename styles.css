@@ -1228,6 +1228,14 @@ button.column-explorer-cal-cell {
 .column-explorer-filter-info[hidden],
 .column-explorer-selection-bar[hidden] { display: none; }
 .column-explorer-filter-info > [role="status"] { flex: 1 1 130px; }
+.column-explorer-state-filter {
+	flex: 0 1 auto;
+	max-width: 150px;
+	height: 26px;
+	min-width: 0;
+	padding-block: 2px;
+	font-size: inherit;
+}
 .column-explorer-filter-info button {
 	font-size: inherit;
 	height: auto;
@@ -1262,7 +1270,9 @@ button.column-explorer-cal-cell {
 }
 .column-explorer-sort-button svg { width: 12px; height: 12px; flex-shrink: 0; }
 .is-mobile .column-explorer-filter-info button,
+.is-mobile .column-explorer-state-filter,
 .is-mobile .column-explorer-sort-button { min-height: 44px; }
+.is-mobile .column-explorer-state-filter { max-width: 100%; }
 .column-explorer-quicklook-bar {
 	display: flex;
 	align-items: center;
@@ -1292,3 +1302,11 @@ button.column-explorer-cal-cell {
 	padding-inline: 4px;
 }
 .column-explorer-column-title { min-width: 0; }
+
+/* Keep the collapse control visible at the start of the desktop toolbar. */
+.column-explorer-collapse-btn {
+	flex-shrink: 0;
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+	border: 1px solid var(--background-modifier-border);
+}

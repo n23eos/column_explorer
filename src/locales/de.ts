@@ -1,6 +1,8 @@
 import type { Locale } from "./en";
 
 export const de: Locale = {
+	collapseIntermediateColumns: "Zwischenspalten einklappen",
+	expandIntermediateColumns: "Zwischenspalten ausklappen",
 	quickLookPrevious: "Vorherige Datei",
 	quickLookNext: "Nächste Datei",
 	quickLookPosition: "{current} von {total}",
@@ -8,8 +10,15 @@ export const de: Locale = {
 
 	filterScope: "Offene Spalten · Dateinamen",
 	filterMatches: "Passende Dateien: {n} · Offene Spalten",
+	filterState: "Dateistatus",
+	filterAll: "Alle",
+	filterNew: "Neu",
+	filterModified: "Geändert",
+	filterUnread: "Neu und geändert",
 	searchVault: "Vault durchsuchen",
 	searchVaultPlaceholder: "Dateinamen und Pfade suchen…",
+	goToFolder: "Zu Ordner wechseln",
+	folderSearchPlaceholder: "Ordnernamen und Pfade suchen…",
 	selectedActions: "Ausgewählte Elemente",
 	selectionCopied: "Kopiert: {n}",
 	sortInherited: "Global: {sort}",
@@ -29,6 +38,7 @@ export const de: Locale = {
 	deleteN: "{n} Elemente löschen", duplicateN: "{n} Elemente duplizieren",
 	moveTo: "In Ordner verschieben…", moveToPlaceholder: "Zielordner wählen…",
 	copyPath: "Pfad kopieren", copyFullPath: "Vollständigen Pfad kopieren", pathCopied: "Pfad kopiert", copyFailed: "Kopieren in die Zwischenablage fehlgeschlagen",
+	copyPartialPreserved: "Kopieren fehlgeschlagen. Die temporäre Kopie wurde unter „{path}“ gespeichert.",
 	untitled: "Ohne Titel", newFolderName: "Neuer Ordner",
 	cantMoveIntoSelf: "Ein Ordner kann nicht in sich selbst verschoben werden",
 	alreadyExists: "„{name}“ existiert bereits im Zielordner",

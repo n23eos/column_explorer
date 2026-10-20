@@ -22,7 +22,7 @@ import {
 	BOOKMARKS_PATH, CALENDAR_PATH, DAY_PATH_PREFIX, RECENTS_PATH, STORAGE_PATH,
 	NameMatcher,
 	dayKey, desiredPanelWidth, errorMessage, filterByMatcher, lockedColumnVisible, matchesExcludePatterns,
-	mobileSelectionMode, parentSelection,
+	mobileSelectionMode, parentSelection, unreadState,
 	parseExcludePatterns, prunePathKeys, prunePathSet, remapPathKeys, takeFirstExisting,
 } from "./pure";
 import {
@@ -35,9 +35,9 @@ import { commitActiveResize, disconnectListObservers, refreshUnreadMarker, rende
 import { renderPreviewColumn } from "./preview";
 import { SunburstController } from "./storage/sunburst";
 import { showMobileCreateMenu, showSortMenu } from "./menus";
-import { VaultFileSearchModal } from "./search";
+import { FolderNavigationModal, VaultFileSearchModal } from "./search";
 import { ConfirmModal, FolderSuggestModal, QuickLookModal } from "./modals";
-import { copyFiles, duplicateFile, duplicateFolder, moveFiles, trashFiles } from "./fileops";
+import { copyFiles, duplicateFile, duplicateFolder, moveFiles, moveFilesDetailed, trashFiles } from "./fileops";
 import { clearActiveDrag, setupCrumbDropTarget, setupGlobalDnd } from "./dnd";
 import type ColumnExplorerPlugin from "./main";
 
@@ -51,7 +51,10 @@ const PAGE_JUMP = 10;
 /** Пауза перед инлайн-переименованием: рендер должен успеть создать строку. */
 const RENAME_START_DELAY_MS = 100;
 
+type FileStateFilter = "all" | "new" | "modified" | "unread";
+
 interface ColumnViewState {
+	intermediateColumnsCollapsed?: boolean;
 	selection?: string[];
 }
 
@@ -64,6 +67,7 @@ export class ColumnExplorerView extends ItemView {
 	multiSelDepth = -1;
 	private shiftAnchor: string | null = null;
 	private filter = "";
+	private intermediateColumnsCollapsed = false;
 	columnsEl!: HTMLElement;
 	private breadcrumbsEl!: HTMLElement;
 	private searchInput!: HTMLInputElement;
@@ -71,6 +75,8 @@ export class ColumnExplorerView extends ItemView {
 	private clearFilterBtn!: HTMLButtonElement;
 	private filterInfoEl!: HTMLElement;
 	private filterStatusEl!: HTMLElement;
+	private stateFilterEl!: HTMLSelectElement;
+	private stateFilter: FileStateFilter = "all";
 	private desktopSelectionBar?: HTMLElement;
 	private desktopSelectionCount?: HTMLElement;
 	/** Мобильная строка поиска под toolbar (на desktop поиск живёт в toolbar). */
@@ -98,6 +104,7 @@ export class ColumnExplorerView extends ItemView {
 	 * в OS-буфер из Obsidian кроссплатформенно нельзя.
 	 */
 	private fileClipboard: { paths: string[]; cut: boolean } | null = null;
+	private pasteInFlight = false;
 
 	/** Стек истории навигации (снимки selection) для кнопок назад/вперёд. */
 	private history: string[][] = [];
@@ -140,16 +147,17 @@ export class ColumnExplorerView extends ItemView {
 	/* --------- state persistence (restores selection on restart) ----- */
 
 	getState(): Record<string, unknown> {
-		return { selection: this.selection };
+		return { selection: this.selection, intermediateColumnsCollapsed: this.intermediateColumnsCollapsed };
 	}
 
 	async setState(state: ColumnViewState, result: ViewStateResult) {
+		this.intermediateColumnsCollapsed = state?.intermediateColumnsCollapsed === true;
 		if (Array.isArray(state?.selection)) {
 			// workspace.json тоже переживает откаты версий и правки руками:
 			// не-строка в цепочке выбора упала бы на первом же startsWith
 			this.selection = (state.selection as unknown[]).filter((p): p is string => typeof p === "string");
-			if (this.columnsEl) this.render();
 		}
+		if (this.columnsEl) this.render();
 		return super.setState(state, result);
 	}
 
@@ -170,6 +178,13 @@ export class ColumnExplorerView extends ItemView {
 			// На телефоне тулбар не вмещает шесть кнопок: назад — поиск — создать — ещё
 			this.updateMobileToolbar = buildMobileToolbar(this, toolbar);
 		} else {
+			const collapse = this.addToolbarButton(toolbar, "arrow-left", t("collapseIntermediateColumns"), () => {
+				this.intermediateColumnsCollapsed = !this.intermediateColumnsCollapsed;
+				this.render();
+				this.persistState();
+			});
+			collapse.dataset.action = "collapse-columns";
+			collapse.addClass("column-explorer-collapse-btn");
 			this.addToolbarButton(toolbar, "plus", t("create"), (e) => showMobileCreateMenu(this, e));
 			this.addToolbarButton(toolbar, "arrow-up-narrow-wide", t("sort"), (e) => showSortMenu(this, e));
 			const lock = this.addToolbarButton(toolbar, "lock-open", t("lockColumnCount", { n: 1 }), () => this.toggleColumnLock());
@@ -208,11 +223,45 @@ export class ColumnExplorerView extends ItemView {
 
 		this.filterInfoEl = (this.searchRowEl ?? container).createDiv({ cls: "column-explorer-filter-info" });
 		this.filterStatusEl = this.filterInfoEl.createSpan({ attr: { role: "status", "aria-live": "polite" } });
+		this.stateFilterEl = this.filterInfoEl.createEl("select", {
+			cls: "column-explorer-state-filter",
+			attr: { "aria-label": t("filterState"), title: t("filterState") },
+		});
+		for (const [value, label] of [
+			["all", t("filterAll")],
+			["new", t("filterNew")],
+			["modified", t("filterModified")],
+			["unread", t("filterUnread")],
+		] as const) {
+			this.stateFilterEl.createEl("option", { value, text: label });
+		}
+		this.registerDomEvent(this.stateFilterEl, "change", () => {
+			const value = this.stateFilterEl.value;
+			this.stateFilter = value === "new" || value === "modified" || value === "unread" ? value : "all";
+			this.clearMulti();
+			this.render();
+		});
 		const vaultSearch = this.filterInfoEl.createEl("button", {
 			text: t("searchVault"), attr: { type: "button" },
 		});
 		this.registerDomEvent(vaultSearch, "click", () => {
 			new VaultFileSearchModal(this, this.searchInput.value.trim()).open();
+		});
+		const folderSearch = this.filterInfoEl.createEl("button", {
+			text: t("goToFolder"), attr: { type: "button" },
+		});
+		this.registerDomEvent(folderSearch, "click", () => {
+			new FolderNavigationModal(this, this.searchInput.value.trim()).open();
+		});
+		this.registerDomEvent(this.filterInfoEl, "keydown", (event) => {
+			if (event.key !== "Escape") return;
+			event.preventDefault();
+			if (this.multiSel.size > 0) {
+				this.clearMulti();
+				return;
+			}
+			if (this.hasFilter()) this.clearFilter();
+			this.columnsEl.focus();
 		});
 
 		this.breadcrumbsEl = container.createDiv({
@@ -260,6 +309,10 @@ export class ColumnExplorerView extends ItemView {
 		this.registerEvent(this.app.vault.on("modify", (file) => {
 			const folder = file.parent;
 			if (!folder) return;
+			if (this.stateFilter !== "all") {
+				this.markStateFilterDirty(file);
+				return;
+			}
 			const sort = this.plugin.settings.columnSortModes[folder.path] ?? this.plugin.settings.sortMode;
 			if (sort.startsWith("mtime-") || sort.startsWith("size-")) this.markDirty(folder.path);
 		}));
@@ -312,6 +365,18 @@ export class ColumnExplorerView extends ItemView {
 		settings.lockedColumnCount = settings.lockedColumnCount === null ? this.folderColumnCount() : null;
 		void this.plugin.saveSettings();
 		this.render();
+	}
+
+	private updateCollapseButton() {
+		const button = this.contentEl.querySelector<HTMLElement>('[data-action="collapse-columns"]');
+		if (!button) return;
+		const collapsed = this.intermediateColumnsCollapsed;
+		setIcon(button, collapsed ? "arrow-right" : "arrow-left");
+		button.toggleClass("is-active", collapsed);
+		button.setAttribute("aria-pressed", String(collapsed));
+		const label = t(collapsed ? "expandIntermediateColumns" : "collapseIntermediateColumns");
+		button.setAttribute("aria-label", label);
+		button.setAttribute("title", label);
 	}
 
 	private updateColumnLockButton() {
@@ -508,11 +573,26 @@ export class ColumnExplorerView extends ItemView {
 	childrenOf(folder: TFolder): TAbstractFile[] {
 		const children = visibleChildren(folder, this.plugin.settings);
 		// Папки остаются видны при фильтре — иначе не пройти к совпадениям внутри
-		return filterByMatcher(children, displayName, this.filterMatcher, (c) => c instanceof TFolder);
+		return filterByMatcher(children, displayName, this.filterMatcher, (c) => c instanceof TFolder)
+			.filter((item) => !(item instanceof TFile) || this.matchesStateFilter(item));
 	}
 
 	filteredItems<T extends TAbstractFile>(items: T[]): T[] {
-		return filterByMatcher(items, displayName, this.filterMatcher, () => false);
+		return filterByMatcher(items, displayName, this.filterMatcher, () => false)
+			.filter((item) => !(item instanceof TFile) || this.matchesStateFilter(item));
+	}
+
+	private matchesStateFilter(file: TFile): boolean {
+		if (this.stateFilter === "all") return true;
+		const settings = this.plugin.settings;
+		const state = unreadState(file.stat, settings.seenAt[file.path], settings.unreadBaseline);
+		if (this.stateFilter === "unread") return state !== null;
+		return state === this.stateFilter;
+	}
+
+	private matchesFileFilters(file: TFile): boolean {
+		const matchesName = !this.filterMatcher || this.filterMatcher(displayName(file)) !== null;
+		return matchesName && this.matchesStateFilter(file);
 	}
 
 	private quickAccessItems() {
@@ -528,14 +608,20 @@ export class ColumnExplorerView extends ItemView {
 		return this.filterMatcher?.(name) ?? null;
 	}
 
-	hasFilter(): boolean { return this.filter.length > 0; }
+	hasFilter(): boolean { return this.filter.length > 0 || this.stateFilter !== "all"; }
 	filterQuery(): string { return this.filter; }
 
-	clearFilter() {
+	private resetFilters() {
 		this.applyFilter.cancel();
 		this.filterMatcher = null;
 		this.filter = "";
 		this.searchInput.value = "";
+		this.stateFilter = "all";
+		this.stateFilterEl.value = "all";
+	}
+
+	clearFilter() {
+		this.resetFilters();
 		this.render();
 	}
 	isRenaming(path: string): boolean { return this.renamingPath === path; }
@@ -650,6 +736,11 @@ export class ColumnExplorerView extends ItemView {
 		this.flushRefresh();
 	}
 
+	private markStateFilterDirty(file: TAbstractFile) {
+		const selectionAffected = this.selection.includes(file.path) || this.multiSel.has(file.path);
+		this.markDirty(this.specialKind(this.selection[0]) || selectionAffected ? null : file.parent?.path ?? null);
+	}
+
 	private doRefresh() {
 		if (this.fullRenderPending) {
 			this.fullRenderPending = false;
@@ -703,10 +794,13 @@ export class ColumnExplorerView extends ItemView {
 
 	render() {
 		this.updateColumnLockButton();
+		this.updateCollapseButton();
+		this.stateFilterEl.value = this.stateFilter;
 		this.clearFilterBtn.hidden = !this.hasFilter();
 		const filterApplies = this.specialKind(this.selection[0]) !== "storage"
 			&& !(this.specialKind(this.selection[0]) === "calendar" && this.selection.length === 1);
 		this.searchInput.disabled = !filterApplies;
+		this.stateFilterEl.disabled = !filterApplies;
 		this.searchInput.parentElement?.toggleClass("is-inactive", !filterApplies);
 		// Перерисовка убивает список с dragend и колонку с resize-ручкой —
 		// снимаем оба «висящих» состояния сами
@@ -753,13 +847,18 @@ export class ColumnExplorerView extends ItemView {
 			}
 		}
 		this.selection = validSel;
+		const selectedPath = this.selection[this.selection.length - 1];
+		const selectedFile = selectedPath ? this.app.vault.getAbstractFileByPath(selectedPath) : null;
+		if (this.hasFilter() && selectedFile instanceof TFile && !this.matchesFileFilters(selectedFile)) {
+			this.selection.pop();
+		}
 		this.recordHistory();
 
 		// Фиксация числа колонок: первые N−1 колонок заморожены на месте,
 		// последняя всегда показывает самую глубокую папку цепочки —
 		// переходы вглубь происходят внутри неё, промежуточные колонки скрыты
 		// На телефоне экран узкий — всегда показываем только самую глубокую колонку
-		const lockedCount = Platform.isMobile ? 1 : this.plugin.settings.lockedColumnCount;
+		const lockedCount = Platform.isMobile ? 1 : this.intermediateColumnsCollapsed ? 2 : this.plugin.settings.lockedColumnCount;
 		const folderCols = this.folderColumnCount();
 		const hasGap = lockedCount !== null && folderCols > lockedCount;
 		this.columnsEl.toggleClass("is-locked", hasGap);
@@ -977,6 +1076,12 @@ export class ColumnExplorerView extends ItemView {
 	/** Точечно обновить маркер непрочитанного — без ре-рендера колонки. */
 	updateUnreadMarker(path: string) {
 		if (!this.columnsEl) return;
+		if (this.stateFilter !== "all") {
+			const file = this.app.vault.getAbstractFileByPath(path);
+			if (file) this.markStateFilterDirty(file);
+			else this.markDirty(null);
+			return;
+		}
 		refreshUnreadMarker(this, this.columnsEl, path);
 	}
 
@@ -1305,14 +1410,27 @@ export class ColumnExplorerView extends ItemView {
 	 * Вставить буфер в папку (по умолчанию — текущую). Copy-буфер живёт
 	 * дальше для повторных вставок, cut-буфер очищается после перемещения.
 	 */
-	pasteClipboard(target: TFolder = this.currentFolder()) {
+	async pasteClipboard(target: TFolder = this.currentFolder()) {
+		if (this.pasteInFlight) return;
 		const clip = this.fileClipboard;
 		if (!clip) return;
-		if (clip.cut) {
-			this.fileClipboard = null;
-			void moveFiles(this.app, clip.paths, target).then(() => this.render());
-		} else {
-			void copyFiles(this.app, clip.paths, target);
+		this.pasteInFlight = true;
+		try {
+			if (clip.cut) {
+				const result = await moveFilesDetailed(this.app, clip.paths, target);
+				// Пользователь мог скопировать или вырезать другой набор, пока шёл move.
+				// Результат старой операции не должен затирать новый буфер.
+				if (this.fileClipboard === clip) {
+					this.fileClipboard = result.remainingPaths.length > 0
+						? { paths: result.remainingPaths, cut: true }
+						: null;
+				}
+				this.render();
+			} else {
+				await copyFiles(this.app, clip.paths, target);
+			}
+		} finally {
+			this.pasteInFlight = false;
 		}
 	}
 
@@ -1340,9 +1458,7 @@ export class ColumnExplorerView extends ItemView {
 
 	revealFile(file: TAbstractFile | null) {
 		if (!file) return;
-		this.applyFilter.cancel();
-		this.searchInput.value = "";
-		if (this.hasFilter()) { this.filter = ""; this.filterMatcher = null; this.searchInput.value = ""; }
+		this.resetFilters();
 		const chain: string[] = [];
 		let cur: TAbstractFile | null = file;
 		while (cur && cur.parent) {
@@ -1567,7 +1683,7 @@ export class ColumnExplorerView extends ItemView {
 			this.copySelectionAt(depth, true);
 		} else if ((e.metaKey || e.ctrlKey) && (e.key === "v" || e.key === "V" || e.code === "KeyV")) {
 			e.preventDefault();
-			this.pasteClipboard();
+			void this.pasteClipboard();
 		} else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
 			// Type-ahead: как в Finder — набор букв прыгает к совпадению
 			if (e.key === " ") e.preventDefault(); // пробел иначе прокручивает список

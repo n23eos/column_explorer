@@ -1,7 +1,9 @@
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { TFile } from "obsidian";
 import ColumnExplorerPlugin from "../src/main";
+import { FolderNavigationModal } from "../src/search";
 import { ColumnExplorerSettings, setPanelAutoResize } from "../src/settings";
+import { ColumnExplorerView } from "../src/view";
 import { makeVault } from "./setup/vault";
 import { makeApp } from "./setup/app";
 
@@ -145,7 +147,7 @@ describe("registration", () => {
 		expect(registered.views).toEqual(["column-explorer-view"]);
 		expect(registered.ribbonIcons).toEqual(["columns-3"]);
 		expect(registered.commands.map((c) => c.id)).toEqual([
-			"open-view", "reveal-active-file", "focus-view", "new-note-here", "new-folder-here",
+			"open-view", "reveal-active-file", "focus-view", "go-to-folder", "new-note-here", "new-folder-here",
 		]);
 	});
 
@@ -231,12 +233,15 @@ describe("vault and workspace events", () => {
 		// Своя правка не должна ставить себе же метку «изменён кем-то другим»
 		const { plugin, app, vault } = await loadPlugin({ seenAt: { "a.md": 500 } });
 		const file = vault.getAbstractFileByPath("a.md") as TFile;
+		const updateUnreadMarker = vi.fn();
+		(plugin as unknown as { getView: () => unknown }).getView = () => ({ updateUnreadMarker });
 		file.stat = { ...file.stat, mtime: 90_000 };
 		app.workspace.getActiveFile = () => file;
 
 		app.vault.trigger("modify", file);
 
 		expect(plugin.settings.seenAt["a.md"]).toBe(90_000);
+		expect(updateUnreadMarker).toHaveBeenCalledWith("a.md");
 	});
 
 	test("a background edit leaves the seen mark alone", async () => {
@@ -342,6 +347,34 @@ describe("activateView", () => {
 		const commands = (plugin as unknown as { commands: { id: string; checkCallback?: (c: boolean) => boolean }[] }).commands;
 
 		expect(commands.find((c) => c.id === "new-folder-here")?.checkCallback?.(true)).toBe(true);
+	});
+
+	test("go-to-folder waits for the view activation before opening its modal", async () => {
+		const { plugin, app } = await loadPlugin({});
+		const calls: string[] = [];
+		const view = Object.assign(Object.create(ColumnExplorerView.prototype) as ColumnExplorerView, { app });
+		const leaf = {
+			view: {} as unknown,
+			states: [] as unknown[],
+			setViewState(state: unknown) { this.states.push(state); return Promise.resolve(); },
+			loadIfDeferred() { calls.push("load"); this.view = view; return Promise.resolve(); },
+		};
+		Object.assign(app.workspace, {
+			getLeavesOfType: () => [leaf],
+			revealLeaf: () => { calls.push("reveal"); return Promise.resolve(); },
+		});
+		const open = vi.spyOn(FolderNavigationModal.prototype, "open").mockImplementation(() => {
+			calls.push("open");
+		});
+		const command = (plugin as unknown as {
+			commands: { id: string; callback?: () => unknown }[];
+		}).commands.find((item) => item.id === "go-to-folder");
+
+		await command?.callback?.();
+
+		expect(calls).toEqual(["reveal", "load", "open"]);
+		expect(leaf.states).toEqual([]);
+		expect(open).toHaveBeenCalledOnce();
 	});
 });
 

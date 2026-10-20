@@ -472,6 +472,62 @@ describe("more keyboard shortcuts", () => {
 		expect(app.fileManager.renamed).toHaveLength(1);
 	});
 
+	test("a partial cut paste keeps only failed paths for retry", async () => {
+		const { view, app, vault } = await mountView(["a.md", "b.md", "target/"]);
+		const rename = app.fileManager.renameFile.bind(app.fileManager);
+		let failB = true;
+		app.fileManager.renameFile = async (file, path) => {
+			if (file.path === "b.md" && failB) throw new Error("locked");
+			await rename(file, path);
+		};
+		view.copyItems(["a.md", "b.md"], true);
+
+		await view.pasteClipboard(folderOf(vault, "target"));
+		expect(app.fileManager.renamed).toEqual([{ from: "a.md", to: "target/a.md" }]);
+		expect(view.isCutPath("a.md")).toBe(false);
+		expect(view.isCutPath("b.md")).toBe(true);
+
+		failB = false;
+		await view.pasteClipboard(folderOf(vault, "target"));
+		expect(app.fileManager.renamed).toEqual([
+			{ from: "a.md", to: "target/a.md" },
+			{ from: "b.md", to: "target/b.md" },
+		]);
+		expect(view.hasFileClipboard()).toBe(false);
+	});
+
+	test("repeated paste while a move is pending starts only one operation", async () => {
+		const { view, app, vault } = await mountView(["a.md", "target/"]);
+		let release!: () => void;
+		const pending = new Promise<void>((resolve) => { release = resolve; });
+		const rename = vi.fn(() => pending);
+		app.fileManager.renameFile = rename;
+		view.copyItems(["a.md"], true);
+
+		const first = view.pasteClipboard(folderOf(vault, "target"));
+		const repeated = view.pasteClipboard(folderOf(vault, "target"));
+		expect(rename).toHaveBeenCalledTimes(1);
+		release();
+		await Promise.all([first, repeated]);
+		expect(rename).toHaveBeenCalledTimes(1);
+	});
+
+	test("a completed move does not overwrite a clipboard changed in flight", async () => {
+		const { view, app, vault } = await mountView(["a.md", "b.md", "target/"]);
+		let release!: () => void;
+		const pending = new Promise<void>((resolve) => { release = resolve; });
+		app.fileManager.renameFile = () => pending;
+		view.copyItems(["a.md"], true);
+
+		const paste = view.pasteClipboard(folderOf(vault, "target"));
+		view.copyItems(["b.md"], true);
+		release();
+		await paste;
+
+		expect(view.isCutPath("a.md")).toBe(false);
+		expect(view.isCutPath("b.md")).toBe(true);
+	});
+
 	test("Delete with a multi-selection removes every selected file", async () => {
 		const { view, app, vault } = await mountView(["a.md", "b.md"], { confirmDelete: false });
 		view.toggleMulti(vault.getAbstractFileByPath("a.md") as TFile, 0);

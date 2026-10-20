@@ -1,6 +1,8 @@
 import type { Locale } from "./en";
 
 export const es: Locale = {
+	collapseIntermediateColumns: "Contraer columnas intermedias",
+	expandIntermediateColumns: "Expandir columnas intermedias",
 	quickLookPrevious: "Archivo anterior",
 	quickLookNext: "Archivo siguiente",
 	quickLookPosition: "{current} de {total}",
@@ -8,8 +10,15 @@ export const es: Locale = {
 
 	filterScope: "Columnas abiertas · Nombres de archivo",
 	filterMatches: "Archivos coincidentes: {n} · Columnas abiertas",
+	filterState: "Estado del archivo",
+	filterAll: "Todos",
+	filterNew: "Nuevos",
+	filterModified: "Modificados",
+	filterUnread: "Nuevos y modificados",
 	searchVault: "Buscar en la bóveda",
 	searchVaultPlaceholder: "Buscar nombres y rutas de archivos…",
+	goToFolder: "Ir a la carpeta",
+	folderSearchPlaceholder: "Buscar nombres y rutas de carpetas…",
 	selectedActions: "Elementos seleccionados",
 	selectionCopied: "Copiados: {n}",
 	sortInherited: "Global: {sort}",
@@ -29,6 +38,7 @@ export const es: Locale = {
 	deleteN: "Eliminar {n} elementos", duplicateN: "Duplicar {n} elementos",
 	moveTo: "Mover a la carpeta…", moveToPlaceholder: "Elige la carpeta de destino…",
 	copyPath: "Copiar ruta", copyFullPath: "Copiar ruta completa", pathCopied: "Ruta copiada", copyFailed: "No se pudo copiar al portapapeles",
+	copyPartialPreserved: "La copia falló. La copia temporal se conservó en «{path}».",
 	untitled: "Sin título", newFolderName: "Nueva carpeta",
 	cantMoveIntoSelf: "No se puede mover una carpeta dentro de sí misma",
 	alreadyExists: "«{name}» ya existe en la carpeta de destino",

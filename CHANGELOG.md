@@ -1,8 +1,17 @@
 # Changelog
 
-## [Unreleased]
+## [1.16.0] - 2026-10-20
+
+### Safe operations and navigation
+- Add a separate folder-name and path search, available from the explorer and command palette.
+- Add temporary All, New, Modified, and New or modified filters combined with the name filter.
+- Keep unsuccessful cut items available for retry, without repeating successful moves or overwriting a newly changed clipboard.
+- Duplicate files without extensions without adding a trailing dot.
+- Prepare folder copies before publishing the final destination; preserve and report the temporary folder on failure, without automatically deleting concurrent changes.
 
 ### Added
+- Collapse intermediate columns with a dedicated toolbar button while keeping the root and current folder visible.
+- Restore the separate desktop column-count lock button and preserve saved column widths.
 - Show the filter scope and matching file count, with a vault-wide file-name and path search.
 - Add a desktop selection toolbar for copying, moving and clearing selected items.
 - Show the effective folder sort order in each header with a directly accessible menu.
