@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.1] - 2026-10-20
+
+### Fixed
+- Declare ES2019 standard-library types for flatMap and Object.fromEntries while retaining the ES2018 output target.
+- Check plugin source without ambient Node types during the build, so missing standard-library declarations cannot be masked by test dependencies.
+- Point the funding URL to the repository support section, which retains the existing donation options.
+
 ## [1.16.0] - 2026-10-20
 
 ### Safe operations and navigation
