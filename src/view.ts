@@ -1,6 +1,7 @@
 import {
 	Component,
 	ItemView,
+	Menu,
 	Notice,
 	TAbstractFile,
 	TFile,
@@ -21,7 +22,7 @@ import {
 	BOOKMARKS_PATH, CALENDAR_PATH, DAY_PATH_PREFIX, RECENTS_PATH, STORAGE_PATH,
 	NameMatcher,
 	dayKey, desiredPanelWidth, errorMessage, filterByMatcher, lockedColumnVisible, matchesExcludePatterns,
-	mobileSelectionMode, parentSelection,
+	mobileSelectionMode, parentSelection, unreadState,
 	parseExcludePatterns, prunePathKeys, prunePathSet, remapPathKeys, takeFirstExisting,
 } from "./pure";
 import {
@@ -29,13 +30,14 @@ import {
 	buildActionBar, buildMobileToolbar, setupEdgeSwipe, setupViewportTracking,
 } from "./mobile";
 import { displayName, folderNoteOf, visibleChildren } from "./utils";
-import { MIN_COLUMN_WIDTH } from "./settings";
+import { MIN_COLUMN_WIDTH, setPanelAutoResize } from "./settings";
 import { commitActiveResize, disconnectListObservers, refreshUnreadMarker, renderCalendarColumn, renderColumn, renderColumnList, renderFileListColumn, renderStorageColumn } from "./column";
 import { renderPreviewColumn } from "./preview";
 import { SunburstController } from "./storage/sunburst";
-import { showSortMenu } from "./menus";
-import { ConfirmModal, QuickLookModal } from "./modals";
-import { copyFiles, duplicateFile, duplicateFolder, moveFiles, trashFiles } from "./fileops";
+import { showMobileCreateMenu, showSortMenu } from "./menus";
+import { FolderNavigationModal, VaultFileSearchModal } from "./search";
+import { ConfirmModal, FolderSuggestModal, QuickLookModal } from "./modals";
+import { copyFiles, duplicateFile, duplicateFolder, moveFiles, moveFilesDetailed, trashFiles } from "./fileops";
 import { clearActiveDrag, setupCrumbDropTarget, setupGlobalDnd } from "./dnd";
 import type ColumnExplorerPlugin from "./main";
 
@@ -49,7 +51,10 @@ const PAGE_JUMP = 10;
 /** Пауза перед инлайн-переименованием: рендер должен успеть создать строку. */
 const RENAME_START_DELAY_MS = 100;
 
+type FileStateFilter = "all" | "new" | "modified" | "unread";
+
 interface ColumnViewState {
+	intermediateColumnsCollapsed?: boolean;
 	selection?: string[];
 }
 
@@ -62,11 +67,18 @@ export class ColumnExplorerView extends ItemView {
 	multiSelDepth = -1;
 	private shiftAnchor: string | null = null;
 	private filter = "";
+	private intermediateColumnsCollapsed = false;
 	columnsEl!: HTMLElement;
 	private breadcrumbsEl!: HTMLElement;
 	private searchInput!: HTMLInputElement;
 	private renamingPath: string | null = null;
-	private lockBtn?: HTMLElement;
+	private clearFilterBtn!: HTMLButtonElement;
+	private filterInfoEl!: HTMLElement;
+	private filterStatusEl!: HTMLElement;
+	private stateFilterEl!: HTMLSelectElement;
+	private stateFilter: FileStateFilter = "all";
+	private desktopSelectionBar?: HTMLElement;
+	private desktopSelectionCount?: HTMLElement;
 	/** Мобильная строка поиска под toolbar (на desktop поиск живёт в toolbar). */
 	private searchRowEl: HTMLElement | null = null;
 	private searchOpen = false;
@@ -92,6 +104,7 @@ export class ColumnExplorerView extends ItemView {
 	 * в OS-буфер из Obsidian кроссплатформенно нельзя.
 	 */
 	private fileClipboard: { paths: string[]; cut: boolean } | null = null;
+	private pasteInFlight = false;
 
 	/** Стек истории навигации (снимки selection) для кнопок назад/вперёд. */
 	private history: string[][] = [];
@@ -109,6 +122,13 @@ export class ColumnExplorerView extends ItemView {
 		// Нечёткий поиск Obsidian — тот же, что в Quick Switcher: "col ex"
 		// находит "Column Explorer". Регистр матчер учитывает сам
 		this.filterMatcher = this.filter ? prepareFuzzySearch(this.filter) : null;
+		this.clearMulti();
+		const depth = this.selection.length - 1;
+		const selected = this.selection[depth];
+		if (selected && !selected.startsWith("::") && !this.siblingsAt(depth).some(item => item.path === selected)) {
+			this.selection = this.selection.slice(0, depth);
+			this.persistState();
+		}
 		this.render();
 	}, 150, true);
 
@@ -127,16 +147,17 @@ export class ColumnExplorerView extends ItemView {
 	/* --------- state persistence (restores selection on restart) ----- */
 
 	getState(): Record<string, unknown> {
-		return { selection: this.selection };
+		return { selection: this.selection, intermediateColumnsCollapsed: this.intermediateColumnsCollapsed };
 	}
 
 	async setState(state: ColumnViewState, result: ViewStateResult) {
+		this.intermediateColumnsCollapsed = state?.intermediateColumnsCollapsed === true;
 		if (Array.isArray(state?.selection)) {
 			// workspace.json тоже переживает откаты версий и правки руками:
 			// не-строка в цепочке выбора упала бы на первом же startsWith
 			this.selection = (state.selection as unknown[]).filter((p): p is string => typeof p === "string");
-			if (this.columnsEl) this.render();
 		}
+		if (this.columnsEl) this.render();
 		return super.setState(state, result);
 	}
 
@@ -157,18 +178,19 @@ export class ColumnExplorerView extends ItemView {
 			// На телефоне тулбар не вмещает шесть кнопок: назад — поиск — создать — ещё
 			this.updateMobileToolbar = buildMobileToolbar(this, toolbar);
 		} else {
-			this.addToolbarButton(toolbar, "file-plus", t("newNote"), () => void this.createNote(this.currentFolder()));
-			this.addToolbarButton(toolbar, "folder-plus", t("newFolder"), () => void this.createFolder(this.currentFolder()));
-			this.addToolbarButton(toolbar, "locate", t("reveal"), () => this.revealFile(this.app.workspace.getActiveFile()));
-			this.addToolbarButton(toolbar, "arrow-up-narrow-wide", t("sort"), (e) => showSortMenu(this, e));
-			this.addToolbarButton(toolbar, "chevrons-left", t("collapse"), () => this.collapseToRoot());
-			this.lockBtn = this.addToolbarButton(toolbar, "lock-open", t("lockPanel"), () => {
-				const s = this.plugin.settings;
-				s.lockedColumnCount = s.lockedColumnCount === null ? this.folderColumnCount() : null;
-				void this.plugin.saveSettings();
+			const collapse = this.addToolbarButton(toolbar, "arrow-left", t("collapseIntermediateColumns"), () => {
+				this.intermediateColumnsCollapsed = !this.intermediateColumnsCollapsed;
 				this.render();
+				this.persistState();
 			});
-			this.updateLockButton();
+			collapse.dataset.action = "collapse-columns";
+			collapse.addClass("column-explorer-collapse-btn");
+			this.addToolbarButton(toolbar, "plus", t("create"), (e) => showMobileCreateMenu(this, e));
+			this.addToolbarButton(toolbar, "arrow-up-narrow-wide", t("sort"), (e) => showSortMenu(this, e));
+			const lock = this.addToolbarButton(toolbar, "lock-open", t("lockColumnCount", { n: 1 }), () => this.toggleColumnLock());
+			lock.dataset.action = "lock-columns";
+			const more = this.addToolbarButton(toolbar, "more-horizontal", t("more"), (e) => this.showMoreMenu(e));
+			more.dataset.action = "more";
 		}
 
 		// Поиск: на телефоне — отдельная строка под тулбаром, раскрывается кнопкой
@@ -176,17 +198,69 @@ export class ColumnExplorerView extends ItemView {
 			this.searchRowEl = container.createDiv({ cls: "column-explorer-search-row" });
 			this.searchRowEl.hide();
 		}
-		this.searchInput = (this.searchRowEl ?? toolbar).createEl("input", {
+		const search = (this.searchRowEl ?? toolbar).createDiv({ cls: "column-explorer-search-wrap" });
+		this.searchInput = search.createEl("input", {
 			type: "search", cls: "column-explorer-search",
-			attr: { placeholder: t("search"), "aria-label": t("search") },
+			attr: { placeholder: t("filterColumns"), "aria-label": t("filterColumns") },
 		});
+		this.clearFilterBtn = search.createEl("button", {
+			cls: "clickable-icon column-explorer-clear-filter",
+			attr: { type: "button", "aria-label": t("clearFilter") },
+		});
+		setIcon(this.clearFilterBtn, "x");
+		this.clearFilterBtn.hidden = true;
+		this.registerDomEvent(this.clearFilterBtn, "click", () => { this.clearFilter(); this.searchInput.focus(); });
 		this.registerDomEvent(this.searchInput, "input", () => this.applyFilter());
 		this.registerDomEvent(this.searchInput, "keydown", (e) => {
 			if (e.key !== "Escape") return;
 			e.preventDefault();
+			if (this.multiSel.size > 0) { this.clearMulti(); return; }
 			// Аппаратная клавиатура есть и на планшете — Escape закрывает строку целиком
 			if (this.searchOpen) { this.toggleMobileSearch(); return; }
 			this.clearFilter();
+			this.columnsEl.focus();
+		});
+
+		this.filterInfoEl = (this.searchRowEl ?? container).createDiv({ cls: "column-explorer-filter-info" });
+		this.filterStatusEl = this.filterInfoEl.createSpan({ attr: { role: "status", "aria-live": "polite" } });
+		this.stateFilterEl = this.filterInfoEl.createEl("select", {
+			cls: "column-explorer-state-filter",
+			attr: { "aria-label": t("filterState"), title: t("filterState") },
+		});
+		for (const [value, label] of [
+			["all", t("filterAll")],
+			["new", t("filterNew")],
+			["modified", t("filterModified")],
+			["unread", t("filterUnread")],
+		] as const) {
+			this.stateFilterEl.createEl("option", { value, text: label });
+		}
+		this.registerDomEvent(this.stateFilterEl, "change", () => {
+			const value = this.stateFilterEl.value;
+			this.stateFilter = value === "new" || value === "modified" || value === "unread" ? value : "all";
+			this.clearMulti();
+			this.render();
+		});
+		const vaultSearch = this.filterInfoEl.createEl("button", {
+			text: t("searchVault"), attr: { type: "button" },
+		});
+		this.registerDomEvent(vaultSearch, "click", () => {
+			new VaultFileSearchModal(this, this.searchInput.value.trim()).open();
+		});
+		const folderSearch = this.filterInfoEl.createEl("button", {
+			text: t("goToFolder"), attr: { type: "button" },
+		});
+		this.registerDomEvent(folderSearch, "click", () => {
+			new FolderNavigationModal(this, this.searchInput.value.trim()).open();
+		});
+		this.registerDomEvent(this.filterInfoEl, "keydown", (event) => {
+			if (event.key !== "Escape") return;
+			event.preventDefault();
+			if (this.multiSel.size > 0) {
+				this.clearMulti();
+				return;
+			}
+			if (this.hasFilter()) this.clearFilter();
 			this.columnsEl.focus();
 		});
 
@@ -194,6 +268,8 @@ export class ColumnExplorerView extends ItemView {
 			cls: "column-explorer-breadcrumbs",
 			attr: { role: "navigation", "aria-label": "Breadcrumbs" },
 		});
+
+		if (!Platform.isMobile) this.buildDesktopSelectionBar(container);
 
 		this.columnsEl = container.createDiv({ cls: "column-explorer-columns" });
 		this.columnsEl.tabIndex = 0;
@@ -230,6 +306,17 @@ export class ColumnExplorerView extends ItemView {
 			this.markDirty(null);
 		}));
 
+		this.registerEvent(this.app.vault.on("modify", (file) => {
+			const folder = file.parent;
+			if (!folder) return;
+			if (this.stateFilter !== "all") {
+				this.markStateFilterDirty(file);
+				return;
+			}
+			const sort = this.plugin.settings.columnSortModes[folder.path] ?? this.plugin.settings.sortMode;
+			if (sort.startsWith("mtime-") || sort.startsWith("size-")) this.markDirty(folder.path);
+		}));
+
 		// Живое обновление колонки «Закладки»: core-плагин триггерит "changed"
 		// при каждом изменении. Приватный API — в try; без подписки колонка
 		// обновилась бы только при следующем рендере
@@ -262,19 +349,67 @@ export class ColumnExplorerView extends ItemView {
 	}
 
 	private addToolbarButton(parent: HTMLElement, icon: string, tooltip: string, onClick: (e: MouseEvent) => void): HTMLElement {
-		const btn = parent.createDiv({ cls: "clickable-icon column-explorer-toolbar-btn", attr: { "aria-label": tooltip } });
+		const btn = parent.createEl("button", { cls: "clickable-icon column-explorer-toolbar-btn", attr: { type: "button", "aria-label": tooltip } });
 		setIcon(btn, icon);
-		this.registerDomEvent(btn, "click", onClick);
+		this.registerDomEvent(btn, "click", (event) => {
+			if (event.detail === 0) {
+				const rect = btn.getBoundingClientRect();
+				onClick(new MouseEvent("click", { clientX: rect.left, clientY: rect.bottom }));
+			} else onClick(event);
+		});
 		return btn;
 	}
 
-	private updateLockButton() {
-		// На телефоне кнопки фиксации нет — колонка всегда одна
-		if (!this.lockBtn) return;
+	private toggleColumnLock() {
+		const settings = this.plugin.settings;
+		settings.lockedColumnCount = settings.lockedColumnCount === null ? this.folderColumnCount() : null;
+		void this.plugin.saveSettings();
+		this.render();
+	}
+
+	private updateCollapseButton() {
+		const button = this.contentEl.querySelector<HTMLElement>('[data-action="collapse-columns"]');
+		if (!button) return;
+		const collapsed = this.intermediateColumnsCollapsed;
+		setIcon(button, collapsed ? "arrow-right" : "arrow-left");
+		button.toggleClass("is-active", collapsed);
+		button.setAttribute("aria-pressed", String(collapsed));
+		const label = t(collapsed ? "expandIntermediateColumns" : "collapseIntermediateColumns");
+		button.setAttribute("aria-label", label);
+		button.setAttribute("title", label);
+	}
+
+	private updateColumnLockButton() {
+		const button = this.contentEl.querySelector<HTMLElement>('[data-action="lock-columns"]');
+		if (!button) return;
 		const locked = this.plugin.settings.lockedColumnCount !== null;
-		setIcon(this.lockBtn, locked ? "lock" : "lock-open");
-		this.lockBtn.setAttribute("aria-label", locked ? t("unlockPanel") : t("lockPanel"));
-		this.lockBtn.toggleClass("is-active", locked);
+		setIcon(button, locked ? "lock" : "lock-open");
+		button.toggleClass("is-active", locked);
+		button.setAttribute("aria-pressed", String(locked));
+		const label = locked ? t("unlockColumnCount") : t("lockColumnCount", { n: this.folderColumnCount() });
+		button.setAttribute("aria-label", label);
+		button.setAttribute("title", label);
+	}
+
+	private showMoreMenu(event: MouseEvent) {
+		const menu = new Menu();
+		menu.addItem(item => item.setTitle(t("reveal")).setIcon("locate")
+			.onClick(() => this.revealFile(this.app.workspace.getActiveFile())));
+		menu.addItem(item => item.setTitle(t("collapse")).setIcon("chevrons-left")
+			.onClick(() => this.collapseToRoot()));
+		menu.addSeparator();
+		const settings = this.plugin.settings;
+		menu.addItem(item => item.setTitle(settings.lockedColumnCount === null
+			? t("lockColumnCount", { n: this.folderColumnCount() }) : t("unlockColumnCount"))
+			.setIcon("columns-3").setChecked(settings.lockedColumnCount !== null)
+			.onClick(() => this.toggleColumnLock()));
+		menu.addItem(item => item.setTitle(t("panelAutoWidth")).setIcon("ruler")
+			.setChecked(settings.autoPanelResize).onClick(() => {
+				setPanelAutoResize(settings, !settings.autoPanelResize);
+				void this.plugin.saveSettings();
+				this.autoResizePanel();
+			}));
+		menu.showAtMouseEvent(event);
 	}
 
 	/* ------------------------------ mobile --------------------------- */
@@ -356,14 +491,80 @@ export class ColumnExplorerView extends ItemView {
 
 	/** Выделение меняет только классы элементов — полный render не нужен. */
 	private syncMultiSelDom() {
-		this.columnsEl.querySelectorAll(".column-explorer-item.is-multi-selected")
-			.forEach((el) => el.removeClass("is-multi-selected"));
-		for (const path of this.multiSel) {
-			this.columnsEl.querySelector<HTMLElement>(
-				`.column-explorer-item[data-path="${CSS.escape(path)}"]`
-			)?.addClass("is-multi-selected");
-		}
+		this.columnsEl.querySelectorAll<HTMLElement>(".column-explorer-item").forEach(item => {
+			const depth = Number(item.closest<HTMLElement>(".column-explorer-column")?.dataset.depth);
+			const multi = this.multiSelDepth === depth && this.multiSel.has(item.dataset.path ?? "");
+			item.toggleClass("is-multi-selected", multi);
+			item.setAttribute("aria-selected", String(this.multiSelDepth === depth && this.multiSel.size > 0
+				? multi : item.hasClass("is-selected")));
+		});
 		this.updateActionBar?.();
+		this.updateDesktopSelectionBar();
+	}
+
+	private buildDesktopSelectionBar(container: HTMLElement) {
+		const bar = container.createDiv({ cls: "column-explorer-selection-bar", attr: { role: "toolbar", "aria-label": t("selectedActions") } });
+		this.desktopSelectionBar = bar;
+		bar.hidden = true;
+		this.desktopSelectionCount = bar.createSpan({ attr: { role: "status", "aria-live": "polite" } });
+		const action = (icon: string, label: string, callback: () => void) => {
+			const btn = bar.createEl("button", { cls: "clickable-icon", attr: { type: "button", "aria-label": label, title: label } });
+			setIcon(btn, icon);
+			this.registerDomEvent(btn, "click", callback);
+		};
+		action("copy", t("copy"), () => {
+			this.copyItems([...this.multiSel], false);
+			new Notice(t("selectionCopied", { n: this.multiSel.size }));
+		});
+		action("folder-input", t("moveTo"), () => {
+			const paths = [...this.multiSel];
+			new FolderSuggestModal(this.app, target => {
+				void moveFiles(this.app, paths, target).then(() => this.clearMulti());
+			}, paths).open();
+		});
+		action("x", t("cancelSelection"), () => { this.clearMulti(); this.columnsEl.focus(); });
+		this.registerDomEvent(bar, "keydown", event => {
+			if (event.key !== "Escape") return;
+			event.preventDefault();
+			this.clearMulti();
+			this.columnsEl.focus();
+		});
+	}
+
+	private updateDesktopSelectionBar() {
+		if (!this.desktopSelectionBar) return;
+		const visible = this.multiSel.size > 0;
+		if (!visible && this.desktopSelectionBar.contains(this.desktopSelectionBar.ownerDocument.activeElement)) this.columnsEl.focus();
+		this.desktopSelectionBar.hidden = !visible;
+		this.desktopSelectionCount?.setText(t("selectedN", { n: this.multiSel.size }));
+	}
+
+	private refreshSelectionAndFilter() {
+		if (this.multiSel.size > 0) {
+			const column = this.columnsEl.querySelector(`[data-depth="${this.multiSelDepth}"]`);
+			const visible = new Set(column ? this.siblingsAt(this.multiSelDepth).map(item => item.path) : []);
+			for (const path of this.multiSel) if (!visible.has(path)) this.multiSel.delete(path);
+			if (this.multiSel.size === 0) this.clearMulti();
+		}
+		this.syncMultiSelDom();
+		this.filterInfoEl.hidden = this.searchInput.disabled;
+		if (!this.hasFilter()) { this.filterStatusEl.setText(t("filterScope")); return; }
+		const matches = new Set<string>();
+		this.columnsEl.querySelectorAll<HTMLElement>(".column-explorer-column[data-depth]").forEach(column => {
+			for (const item of this.siblingsAt(Number(column.dataset.depth))) {
+				if (this.app.vault.getAbstractFileByPath(item.path) instanceof TFile) matches.add(item.path);
+			}
+		});
+		this.filterStatusEl.setText(t("filterMatches", { n: matches.size }));
+	}
+
+	/** File order of the rendered list containing the requested preview. */
+	quickLookFiles(file: TFile, depth = Math.max(0, this.selection.length - 1)): TFile[] {
+		const files = this.siblingsAt(depth).flatMap(item => {
+			const entry = this.app.vault.getAbstractFileByPath(item.path);
+			return entry instanceof TFile ? [entry] : [];
+		});
+		return files.includes(file) ? files : [file];
 	}
 
 	/* -------------------------- shared accessors --------------------- */
@@ -372,7 +573,34 @@ export class ColumnExplorerView extends ItemView {
 	childrenOf(folder: TFolder): TAbstractFile[] {
 		const children = visibleChildren(folder, this.plugin.settings);
 		// Папки остаются видны при фильтре — иначе не пройти к совпадениям внутри
-		return filterByMatcher(children, displayName, this.filterMatcher, (c) => c instanceof TFolder);
+		return filterByMatcher(children, displayName, this.filterMatcher, (c) => c instanceof TFolder)
+			.filter((item) => !(item instanceof TFile) || this.matchesStateFilter(item));
+	}
+
+	filteredItems<T extends TAbstractFile>(items: T[]): T[] {
+		return filterByMatcher(items, displayName, this.filterMatcher, () => false)
+			.filter((item) => !(item instanceof TFile) || this.matchesStateFilter(item));
+	}
+
+	private matchesStateFilter(file: TFile): boolean {
+		if (this.stateFilter === "all") return true;
+		const settings = this.plugin.settings;
+		const state = unreadState(file.stat, settings.seenAt[file.path], settings.unreadBaseline);
+		if (this.stateFilter === "unread") return state !== null;
+		return state === this.stateFilter;
+	}
+
+	private matchesFileFilters(file: TFile): boolean {
+		const matchesName = !this.filterMatcher || this.filterMatcher(displayName(file)) !== null;
+		return matchesName && this.matchesStateFilter(file);
+	}
+
+	private quickAccessItems() {
+		const favorites = this.plugin.settings.showFavorites ? this.filteredItems(this.favoriteItems()) : [];
+		const favoritePaths = new Set(favorites.map(file => file.path));
+		const bookmarks = this.plugin.settings.showBookmarks && this.bookmarksAvailable()
+			? this.filteredItems(this.bookmarkedItems()).filter(file => !favoritePaths.has(file.path)) : [];
+		return { favorites, bookmarks };
 	}
 
 	/** Совпадение имени с текущим запросом — для подсветки в списке. */
@@ -380,13 +608,20 @@ export class ColumnExplorerView extends ItemView {
 		return this.filterMatcher?.(name) ?? null;
 	}
 
-	hasFilter(): boolean { return this.filter.length > 0; }
+	hasFilter(): boolean { return this.filter.length > 0 || this.stateFilter !== "all"; }
 	filterQuery(): string { return this.filter; }
 
-	private clearFilter() {
+	private resetFilters() {
+		this.applyFilter.cancel();
 		this.filterMatcher = null;
 		this.filter = "";
 		this.searchInput.value = "";
+		this.stateFilter = "all";
+		this.stateFilterEl.value = "all";
+	}
+
+	clearFilter() {
+		this.resetFilters();
 		this.render();
 	}
 	isRenaming(path: string): boolean { return this.renamingPath === path; }
@@ -409,6 +644,7 @@ export class ColumnExplorerView extends ItemView {
 		this.shiftAnchor = null;
 		// Нет выделения — нет и мобильного режима выделения
 		this.mobileSelActive = false;
+		if (this.columnsEl) this.syncMultiSelDom();
 	}
 
 	/** Number of folder columns for the current selection chain (root column included). */
@@ -440,6 +676,7 @@ export class ColumnExplorerView extends ItemView {
 			// она висит со старым «Выбрано N»
 			if (this.multiSel.size === 0) this.clearMulti();
 			this.updateActionBar?.();
+			this.updateDesktopSelectionBar();
 		}
 		return i >= 0;
 	}
@@ -499,6 +736,11 @@ export class ColumnExplorerView extends ItemView {
 		this.flushRefresh();
 	}
 
+	private markStateFilterDirty(file: TAbstractFile) {
+		const selectionAffected = this.selection.includes(file.path) || this.multiSel.has(file.path);
+		this.markDirty(this.specialKind(this.selection[0]) || selectionAffected ? null : file.parent?.path ?? null);
+	}
+
 	private doRefresh() {
 		if (this.fullRenderPending) {
 			this.fullRenderPending = false;
@@ -519,9 +761,11 @@ export class ColumnExplorerView extends ItemView {
 				const prevTop = list.scrollTop;
 				renderColumnList(this, list, folder, depth);
 				list.scrollTop = prevTop;
+				list.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
 			}
 		}
 		this.dirtyFolders.clear();
+		this.refreshSelectionAndFilter();
 	}
 
 	/** Vertical scroll of each column keyed by folder path — survives re-render. */
@@ -549,6 +793,15 @@ export class ColumnExplorerView extends ItemView {
 	}
 
 	render() {
+		this.updateColumnLockButton();
+		this.updateCollapseButton();
+		this.stateFilterEl.value = this.stateFilter;
+		this.clearFilterBtn.hidden = !this.hasFilter();
+		const filterApplies = this.specialKind(this.selection[0]) !== "storage"
+			&& !(this.specialKind(this.selection[0]) === "calendar" && this.selection.length === 1);
+		this.searchInput.disabled = !filterApplies;
+		this.stateFilterEl.disabled = !filterApplies;
+		this.searchInput.parentElement?.toggleClass("is-inactive", !filterApplies);
 		// Перерисовка убивает список с dragend и колонку с resize-ручкой —
 		// снимаем оба «висящих» состояния сами
 		clearActiveDrag();
@@ -569,6 +822,7 @@ export class ColumnExplorerView extends ItemView {
 		const validSel: string[] = [];
 		const special = this.specialKind(this.selection[0]);
 		if (!this.plugin.settings.showStorage) this.dropSunburst();
+		else if (special !== "storage") this.sunburst?.suspend();
 		if (special === "calendar") {
 			// Календарь: сентинел + опционально день + опционально файл дня
 			validSel.push(CALENDAR_PATH);
@@ -582,7 +836,7 @@ export class ColumnExplorerView extends ItemView {
 			// «Недавние»/«Закладки»: сентинел + опционально выбранный файл
 			validSel.push(this.selection[0]);
 			const filePath = this.selection[1];
-			if (filePath && this.app.vault.getAbstractFileByPath(filePath) instanceof TFile) validSel.push(filePath);
+			if (filePath && this.app.vault.getAbstractFileByPath(filePath)) validSel.push(filePath);
 		} else {
 			let parent: TFolder = this.app.vault.getRoot();
 			for (const path of this.selection) {
@@ -593,16 +847,20 @@ export class ColumnExplorerView extends ItemView {
 			}
 		}
 		this.selection = validSel;
+		const selectedPath = this.selection[this.selection.length - 1];
+		const selectedFile = selectedPath ? this.app.vault.getAbstractFileByPath(selectedPath) : null;
+		if (this.hasFilter() && selectedFile instanceof TFile && !this.matchesFileFilters(selectedFile)) {
+			this.selection.pop();
+		}
 		this.recordHistory();
 
 		// Фиксация числа колонок: первые N−1 колонок заморожены на месте,
 		// последняя всегда показывает самую глубокую папку цепочки —
 		// переходы вглубь происходят внутри неё, промежуточные колонки скрыты
 		// На телефоне экран узкий — всегда показываем только самую глубокую колонку
-		const lockedCount = Platform.isMobile ? 1 : this.plugin.settings.lockedColumnCount;
+		const lockedCount = Platform.isMobile ? 1 : this.intermediateColumnsCollapsed ? 2 : this.plugin.settings.lockedColumnCount;
 		const folderCols = this.folderColumnCount();
 		const hasGap = lockedCount !== null && folderCols > lockedCount;
-		this.updateLockButton();
 		this.columnsEl.toggleClass("is-locked", hasGap);
 
 		// На телефоне спецколонка занимает весь экран — корневую рядом не рисуем
@@ -616,15 +874,11 @@ export class ColumnExplorerView extends ItemView {
 			if (f instanceof TFile && this.plugin.settings.showPreview) renderPreviewColumn(this, this.columnsEl, f);
 		};
 		if (special === "recents") {
-			renderFileListColumn(this, this.columnsEl, t("recents"), this.recentFiles(), RECENTS_PATH, 1);
+			renderFileListColumn(this, this.columnsEl, t("recents"), this.filteredItems(this.recentFiles()), RECENTS_PATH, 1);
 			previewOf(this.selection[1]);
 		} else if (special === "bookmarks") {
-			const favs = this.plugin.settings.showFavorites ? this.favoriteItems() : [];
-			const favPaths = new Set(favs.map((f) => f.path));
-			const core = this.plugin.settings.showBookmarks && this.bookmarksAvailable()
-				? this.bookmarkedItems().filter((f) => !favPaths.has(f.path))
-				: [];
-			renderFileListColumn(this, this.columnsEl, t("bookmarks"), core, BOOKMARKS_PATH, 1, favs);
+			const { favorites, bookmarks } = this.quickAccessItems();
+			renderFileListColumn(this, this.columnsEl, t("bookmarks"), bookmarks, BOOKMARKS_PATH, 1, favorites);
 			previewOf(this.selection[1]);
 		} else if (special === "storage") {
 			renderStorageColumn(this, this.columnsEl);
@@ -636,7 +890,7 @@ export class ColumnExplorerView extends ItemView {
 				const day = daySentinel.slice(DAY_PATH_PREFIX.length);
 				const title = new Date(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8)))
 					.toLocaleDateString(getLanguage(), { day: "numeric", month: "long", year: "numeric" });
-				renderFileListColumn(this, this.columnsEl, title, this.filesCreatedOn(day), daySentinel, 2);
+				renderFileListColumn(this, this.columnsEl, title, this.filteredItems(this.filesCreatedOn(day)), daySentinel, 2);
 				previewOf(this.selection[2]);
 			}
 		} else {
@@ -656,6 +910,7 @@ export class ColumnExplorerView extends ItemView {
 		this.applyMobileScale();
 		this.updateMobileToolbar?.();
 		this.updateActionBar?.();
+		this.refreshSelectionAndFilter();
 		this.restoreScrollTops(scrollTops);
 		// Вправо прокручиваем только когда набор колонок изменился (открыли новую);
 		// при клике внутри тех же колонок скролл остаётся на месте
@@ -728,12 +983,21 @@ export class ColumnExplorerView extends ItemView {
 		// Кнопки назад/вперёд слева — история навигации по папкам
 		const nav = this.breadcrumbsEl.createDiv({ cls: "column-explorer-nav-buttons" });
 		const navBtn = (icon: string, label: string, enabled: boolean, onClick: () => void) => {
-			const btn = nav.createDiv({
+			const btn = nav.createEl("button", {
 				cls: "clickable-icon column-explorer-nav-btn" + (enabled ? "" : " is-disabled"),
-				attr: { "aria-label": label, role: "button" },
+				attr: { type: "button", "aria-label": label },
 			});
 			setIcon(btn, icon);
-			if (enabled) btn.addEventListener("click", onClick);
+			btn.disabled = !enabled;
+			if (enabled) btn.addEventListener("click", () => {
+				const restoreFocus = btn.ownerDocument.activeElement === btn;
+				onClick();
+				if (restoreFocus) {
+					const next = Array.from(this.breadcrumbsEl.querySelectorAll<HTMLButtonElement>(".column-explorer-nav-btn"))
+						.find(candidate => candidate.getAttribute("aria-label") === label && !candidate.disabled);
+					(next ?? this.columnsEl).focus();
+				}
+			});
 		};
 		// На телефоне «назад» живёт в тулбаре — здесь дублировать его незачем
 		if (!Platform.isMobile) {
@@ -744,26 +1008,33 @@ export class ColumnExplorerView extends ItemView {
 		// Звёздочка: быстро добавить/убрать текущую папку в избранное
 		const current = this.currentFolder();
 		const isFav = this.isFavorite(current.path);
-		const star = nav.createDiv({
+		const star = nav.createEl("button", {
 			cls: "clickable-icon column-explorer-fav-btn" + (isFav ? " is-active" : ""),
-			attr: { "aria-label": isFav ? t("removeFavorite") : t("addFavorite"), role: "button" },
+			attr: { type: "button", "aria-label": isFav ? t("removeFavorite") : t("addFavorite"), "aria-pressed": String(isFav) },
 		});
 		setIcon(star, "star");
-		star.addEventListener("click", () => this.toggleFavorite(current.path));
+		star.addEventListener("click", () => {
+			const restoreFocus = star.ownerDocument.activeElement === star;
+			this.toggleFavorite(current.path);
+			if (restoreFocus) this.breadcrumbsEl.querySelector<HTMLElement>(".column-explorer-fav-btn")?.focus();
+		});
 
 		const addSegment = (label: string, targetDepth: number, isLast: boolean, dropFolder?: TFolder) => {
-			const seg = this.breadcrumbsEl.createSpan({
+			const seg = this.breadcrumbsEl.createEl(isLast ? "span" : "button", {
 				cls: "column-explorer-crumb" + (isLast ? " is-current" : ""),
 				text: label,
+				attr: isLast ? { "aria-current": "page" } : { type: "button" },
 			});
 			// Бросить файл на сегмент пути — переместить в эту папку (как в Finder)
 			if (dropFolder) setupCrumbDropTarget(this, seg, dropFolder);
 			if (!isLast) {
 				seg.addEventListener("click", () => {
+					const restoreFocus = seg.ownerDocument.activeElement === seg;
 					this.selection = this.selection.slice(0, targetDepth);
 					this.clearMulti();
 					this.persistState();
 					this.render();
+					if (restoreFocus) this.columnsEl.focus();
 				});
 				this.breadcrumbsEl.createSpan({ cls: "column-explorer-crumb-sep", text: "›" });
 			}
@@ -775,6 +1046,7 @@ export class ColumnExplorerView extends ItemView {
 				: path === RECENTS_PATH ? t("recents")
 				: path === BOOKMARKS_PATH ? t("bookmarks")
 				: path === CALENDAR_PATH ? t("calendar")
+				: path === STORAGE_PATH ? t("diskUsage")
 				: path.startsWith(DAY_PATH_PREFIX) ? path.slice(DAY_PATH_PREFIX.length)
 				: path.split("/").pop() ?? path;
 			addSegment(label, i + 1, i === this.selection.length - 1, f instanceof TFolder ? f : undefined);
@@ -804,6 +1076,12 @@ export class ColumnExplorerView extends ItemView {
 	/** Точечно обновить маркер непрочитанного — без ре-рендера колонки. */
 	updateUnreadMarker(path: string) {
 		if (!this.columnsEl) return;
+		if (this.stateFilter !== "all") {
+			const file = this.app.vault.getAbstractFileByPath(path);
+			if (file) this.markStateFilterDirty(file);
+			else this.markDirty(null);
+			return;
+		}
 		refreshUnreadMarker(this, this.columnsEl, path);
 	}
 
@@ -1008,7 +1286,52 @@ export class ColumnExplorerView extends ItemView {
 		this.render();
 	}
 
+	private renderSelection(previous: string[], scroll = false) {
+		const depth = this.selection.length - 1;
+		const path = this.selection[depth];
+		const file = path ? this.app.vault.getAbstractFileByPath(path) : null;
+		const previousFile = previous[depth] ? this.app.vault.getAbstractFileByPath(previous[depth]) : null;
+		const sameParents = previous.slice(0, depth).join("\n") === this.selection.slice(0, depth).join("\n");
+		const virtualList = depth === 1 && this.selection[0] === BOOKMARKS_PATH && previous[0] === BOOKMARKS_PATH;
+		const unchangedColumns = sameParents && previous.length === this.selection.length
+			&& (virtualList || (file instanceof TFile && previousFile instanceof TFile));
+		let row = path ? this.columnsEl.querySelector<HTMLElement>(
+			`.column-explorer-column[data-depth="${depth}"] .column-explorer-item[data-path="${CSS.escape(path)}"]`
+		) : null;
+		if (unchangedColumns && !row) {
+			const folder = this.folderAtDepth(depth);
+			const list = this.columnsEl.querySelector<HTMLElement>(`.column-explorer-column[data-depth="${depth}"] .column-explorer-list`);
+			if (folder && list) {
+				renderColumnList(this, list, folder, depth);
+				row = list.querySelector<HTMLElement>(`.column-explorer-item[data-path="${CSS.escape(path)}"]`);
+			}
+		}
+		if (!unchangedColumns || !row) {
+			this.render();
+			row = path ? this.columnsEl.querySelector<HTMLElement>(
+				`.column-explorer-column[data-depth="${depth}"] .column-explorer-item[data-path="${CSS.escape(path)}"]`
+			) : null;
+		} else {
+			this.columnsEl.querySelectorAll<HTMLElement>(`.column-explorer-column[data-depth="${depth}"] .column-explorer-item`).forEach(item => {
+				const selected = item.dataset.path === path;
+				item.toggleClass("is-selected", selected);
+				item.setAttribute("aria-selected", String(selected));
+			});
+			this.syncMultiSelDom();
+			this.updateActiveFileHighlight();
+			this.columnsEl.querySelector(".column-explorer-preview")?.remove();
+			if (file instanceof TFile && this.plugin.settings.showPreview && !Platform.isMobile) {
+				renderPreviewColumn(this, this.columnsEl, file);
+			}
+			this.recordHistory();
+			this.renderBreadcrumbs();
+			this.updateMobileToolbar?.();
+		}
+		if (scroll && row) row.scrollIntoView({ block: "nearest", inline: "nearest" });
+	}
+
 	selectItem(f: TAbstractFile, depth: number, e: MouseEvent) {
+		const previous = [...this.selection];
 		// Фиксация снимается только вручную кнопкой в тулбаре —
 		// навигация (включая клики в первой колонке) замок не трогает
 		this.selection = this.selection.slice(0, depth);
@@ -1021,12 +1344,12 @@ export class ColumnExplorerView extends ItemView {
 			if (note) void this.app.workspace.getLeaf(Keymap.isModEvent(e)).openFile(note);
 		}
 		this.persistState();
-		this.render();
+		this.renderSelection(previous);
 	}
 
 	toggleMulti(f: TAbstractFile, depth: number) {
 		this.applyToggleMulti(f, depth);
-		this.render();
+		this.syncMultiSelDom();
 	}
 
 	/** Мутация мультивыделения без перерисовки — общая с мобильным режимом. */
@@ -1047,19 +1370,20 @@ export class ColumnExplorerView extends ItemView {
 		if (ai === -1 || bi === -1) { this.toggleMulti(f, depth); return; }
 		const [from, to] = ai < bi ? [ai, bi] : [bi, ai];
 		for (let i = from; i <= to; i++) this.multiSel.add(siblings[i].path);
-		this.render();
+		this.syncMultiSelDom();
 	}
 
 	/** Cmd/Ctrl+A — multi-select every item in the active folder column. */
 	selectAllAt(depth: number) {
-		const folder = this.folderAtDepth(depth);
-		if (!folder) return; // виртуальные колонки (Недавние/дни) — пропускаем
-		const children = this.childrenOf(folder);
+		const children = this.siblingsAt(depth).flatMap(({ path }) => {
+			const file = this.app.vault.getAbstractFileByPath(path);
+			return file ? [file] : [];
+		});
 		if (children.length === 0) return;
 		this.clearMulti();
 		this.multiSelDepth = depth;
-		for (const c of children) this.multiSel.add(c.path);
-		this.render();
+		for (const child of children) this.multiSel.add(child.path);
+		this.syncMultiSelDom();
 	}
 
 	/* ------------------------- copy / cut / paste -------------------- */
@@ -1086,14 +1410,27 @@ export class ColumnExplorerView extends ItemView {
 	 * Вставить буфер в папку (по умолчанию — текущую). Copy-буфер живёт
 	 * дальше для повторных вставок, cut-буфер очищается после перемещения.
 	 */
-	pasteClipboard(target: TFolder = this.currentFolder()) {
+	async pasteClipboard(target: TFolder = this.currentFolder()) {
+		if (this.pasteInFlight) return;
 		const clip = this.fileClipboard;
 		if (!clip) return;
-		if (clip.cut) {
-			this.fileClipboard = null;
-			void moveFiles(this.app, clip.paths, target).then(() => this.render());
-		} else {
-			void copyFiles(this.app, clip.paths, target);
+		this.pasteInFlight = true;
+		try {
+			if (clip.cut) {
+				const result = await moveFilesDetailed(this.app, clip.paths, target);
+				// Пользователь мог скопировать или вырезать другой набор, пока шёл move.
+				// Результат старой операции не должен затирать новый буфер.
+				if (this.fileClipboard === clip) {
+					this.fileClipboard = result.remainingPaths.length > 0
+						? { paths: result.remainingPaths, cut: true }
+						: null;
+				}
+				this.render();
+			} else {
+				await copyFiles(this.app, clip.paths, target);
+			}
+		} finally {
+			this.pasteInFlight = false;
 		}
 	}
 
@@ -1121,7 +1458,7 @@ export class ColumnExplorerView extends ItemView {
 
 	revealFile(file: TAbstractFile | null) {
 		if (!file) return;
-		if (this.hasFilter()) { this.filter = ""; this.filterMatcher = null; this.searchInput.value = ""; }
+		this.resetFilters();
 		const chain: string[] = [];
 		let cur: TAbstractFile | null = file;
 		while (cur && cur.parent) {
@@ -1241,14 +1578,20 @@ export class ColumnExplorerView extends ItemView {
 	/* ---------------------------- keyboard --------------------------- */
 
 	private onKeyDown(e: KeyboardEvent) {
-		if (this.renamingPath) return;
+		if (this.renamingPath || (e.target instanceof HTMLElement && e.target !== this.columnsEl
+			&& e.target.closest("button, input, select, textarea, [contenteditable=true]"))) return;
 		// В режиме выделения Escape сначала закрывает сам режим
 		if (this.mobileSelActive && e.key === "Escape") {
 			e.preventDefault();
 			this.exitMobileSelection();
 			return;
 		}
-		const depth = Math.max(0, this.selection.length - 1);
+		if (e.key === "Escape" && this.multiSel.size > 0) {
+			e.preventDefault();
+			this.clearMulti();
+			return;
+		}
+		const depth = this.multiSel.size > 0 ? this.multiSelDepth : Math.max(0, this.selection.length - 1);
 		const selectedPath = this.selection[depth];
 		const children = this.siblingsAt(depth);
 		const currentIdx = children.findIndex(c => c.path === selectedPath);
@@ -1256,11 +1599,12 @@ export class ColumnExplorerView extends ItemView {
 		const jumpTo = (idx: number) => {
 			if (children.length === 0) return;
 			const next = children[Math.min(children.length - 1, Math.max(0, idx))];
+			const previous = [...this.selection];
 			this.selection = this.selection.slice(0, depth);
 			this.selection.push(next.path);
 			this.clearMulti();
 			this.persistState();
-			this.render();
+			this.renderSelection(previous, true);
 		};
 
 		if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -1290,6 +1634,7 @@ export class ColumnExplorerView extends ItemView {
 			if (this.enterVirtual(selectedPath, depth)) return;
 			const f = selectedPath ? this.app.vault.getAbstractFileByPath(selectedPath) : null;
 			if (f instanceof TFolder) {
+				if (this.specialKind(this.selection[0]) === "bookmarks") { this.revealFile(f); return; }
 				const inner = this.childrenOf(f);
 				if (inner.length > 0) {
 					this.selection.push(inner[0].path);
@@ -1304,7 +1649,7 @@ export class ColumnExplorerView extends ItemView {
 			// Во время type-ahead пробел — часть набираемого имени, не превью
 			e.preventDefault();
 			const f = selectedPath ? this.app.vault.getAbstractFileByPath(selectedPath) : null;
-			if (f instanceof TFile) new QuickLookModal(this.app, this, f).open();
+			if (f instanceof TFile) new QuickLookModal(this.app, this, f, this.quickLookFiles(f, depth)).open();
 		} else if (e.key === "Escape") {
 			// В диаграмме «Использование диска» Escape — шаг зума наружу
 			if (this.specialKind(this.selection[0]) === "storage" && this.sunburst?.zoomOut()) {
@@ -1338,7 +1683,7 @@ export class ColumnExplorerView extends ItemView {
 			this.copySelectionAt(depth, true);
 		} else if ((e.metaKey || e.ctrlKey) && (e.key === "v" || e.key === "V" || e.code === "KeyV")) {
 			e.preventDefault();
-			this.pasteClipboard();
+			void this.pasteClipboard();
 		} else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
 			// Type-ahead: как в Finder — набор букв прыгает к совпадению
 			if (e.key === " ") e.preventDefault(); // пробел иначе прокручивает список
@@ -1352,11 +1697,12 @@ export class ColumnExplorerView extends ItemView {
 		this.typeaheadTimer = window.setTimeout(() => { this.typeaheadBuffer = ""; }, TYPEAHEAD_RESET_MS);
 		const match = children.find(c => c.name.toLowerCase().startsWith(this.typeaheadBuffer));
 		if (!match) return;
+		const previous = [...this.selection];
 		this.selection = this.selection.slice(0, depth);
 		this.selection.push(match.path);
 		this.clearMulti();
 		this.persistState();
-		this.render();
+		this.renderSelection(previous, true);
 	}
 
 	/**
@@ -1368,13 +1714,16 @@ export class ColumnExplorerView extends ItemView {
 		const toEntry = (f: TAbstractFile) => ({ path: f.path, name: displayName(f) });
 		const special = this.specialKind(this.selection[0]);
 		if (special && depth >= 1) {
-			if (special === "recents") return this.recentFiles().map(toEntry);
-			if (special === "bookmarks") return this.bookmarkedItems().map(toEntry);
+			if (special === "recents") return this.filteredItems(this.recentFiles()).map(toEntry);
+			if (special === "bookmarks") {
+				const { favorites, bookmarks } = this.quickAccessItems();
+				return [...favorites, ...bookmarks].map(toEntry);
+			}
 			// Диаграмма — не список: стрелками внутрь неё ходить некуда
 			if (special === "storage") return [];
 			// Календарь: глубина 1 — сетка дней (не список), глубина 2 — файлы дня
 			const day = this.selectedDayKey();
-			return depth === 2 && day ? this.filesCreatedOn(day).map(toEntry) : [];
+			return depth === 2 && day ? this.filteredItems(this.filesCreatedOn(day)).map(toEntry) : [];
 		}
 		const parentFolder = this.folderAtDepth(depth);
 		const entries = (parentFolder ? this.childrenOf(parentFolder) : []).map(toEntry);

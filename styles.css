@@ -1140,3 +1140,173 @@
 	padding: calc(6px * var(--ce-mobile-scale, 1)) calc(12px * var(--ce-mobile-scale, 1));
 	font-size: calc(var(--font-ui-small) * var(--ce-mobile-scale, 1));
 }
+
+/* Compact controls share the host theme and keyboard focus treatment. */
+.column-explorer-toolbar {
+	align-items: center;
+}
+
+.column-explorer-search-wrap {
+	display: flex;
+	align-items: center;
+	flex: 1;
+	min-width: 0;
+	gap: 2px;
+}
+
+.column-explorer-search-wrap .column-explorer-search {
+	width: 100%;
+	min-width: 0;
+}
+
+.column-explorer-container button.column-explorer-clear-filter[hidden] {
+	display: none;
+}
+
+.column-explorer-search-wrap.is-inactive {
+	opacity: 0.5;
+}
+
+:where(.column-explorer-container) button.clickable-icon,
+.column-explorer-container button.column-explorer-crumb,
+.column-explorer-container button.column-explorer-cal-month {
+	box-shadow: none;
+	background: transparent;
+	border: 0;
+	color: inherit;
+	font: inherit;
+	height: auto;
+}
+
+.column-explorer-container button.clickable-icon {
+	flex-shrink: 0;
+}
+
+.column-explorer-container button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.column-explorer-container button.column-explorer-crumb {
+	padding: 1px 4px;
+}
+
+.column-explorer-view-toggle {
+	opacity: 0.55;
+}
+
+.column-explorer-list.is-grid > .column-explorer-section-label,
+.column-explorer-list.is-grid > .column-explorer-section-divider,
+.column-explorer-list.is-grid > .column-explorer-load-more {
+	grid-column: 1 / -1;
+}
+
+button.column-explorer-cal-cell {
+	box-shadow: none;
+	border: 0;
+	font: inherit;
+	height: auto;
+	background: transparent;
+}
+
+.column-explorer-search::-webkit-search-cancel-button {
+	-webkit-appearance: none;
+}
+
+/* Everyday controls share the theme and wrap within narrow sidebars. */
+.column-explorer-filter-info,
+.column-explorer-selection-bar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px 8px;
+	padding: 4px 8px;
+	flex: 0 0 auto;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+.column-explorer-filter-info[hidden],
+.column-explorer-selection-bar[hidden] { display: none; }
+.column-explorer-filter-info > [role="status"] { flex: 1 1 130px; }
+.column-explorer-state-filter {
+	flex: 0 1 auto;
+	max-width: 150px;
+	height: 26px;
+	min-width: 0;
+	padding-block: 2px;
+	font-size: inherit;
+}
+.column-explorer-filter-info button {
+	font-size: inherit;
+	height: auto;
+	min-height: 26px;
+	padding: 2px 6px;
+	white-space: normal;
+	box-shadow: none;
+}
+.column-explorer-selection-bar {
+	background: var(--background-secondary);
+	border-block: 1px solid var(--background-modifier-border);
+}
+.column-explorer-selection-bar > [role="status"] { flex: 1; }
+.column-explorer-selection-bar button { width: 28px; height: 28px; }
+.column-explorer-column-header { flex-wrap: wrap; }
+.column-explorer-sort-button {
+	order: 1;
+	flex: 1 0 100%;
+	justify-content: flex-start;
+	gap: 4px;
+	min-width: 0;
+	height: 24px;
+	padding: 2px 0;
+	font-weight: normal;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+.column-explorer-sort-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.column-explorer-sort-button svg { width: 12px; height: 12px; flex-shrink: 0; }
+.is-mobile .column-explorer-filter-info button,
+.is-mobile .column-explorer-state-filter,
+.is-mobile .column-explorer-sort-button { min-height: 44px; }
+.is-mobile .column-explorer-state-filter { max-width: 100%; }
+.column-explorer-quicklook-bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+.column-explorer-quicklook-position {
+	flex: 1;
+	text-align: center;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+.column-explorer-quicklook-body { overflow-y: auto; min-height: 0; }
+.column-explorer-quicklook-bar button { min-width: 28px; min-height: 28px; }
+.is-mobile .column-explorer-quicklook-bar button { min-width: 44px; min-height: 44px; }
+.is-mobile .column-explorer-search-row {
+	flex-direction: column;
+	align-items: stretch;
+}
+.is-mobile .column-explorer-search-row .column-explorer-search-wrap { width: 100%; }
+.is-mobile .column-explorer-search-row .column-explorer-filter-info { padding-inline: 0; }
+.is-mobile .column-explorer-sort-button {
+	order: 0;
+	flex: 0 1 auto;
+	max-width: 38%;
+	padding-inline: 4px;
+}
+.column-explorer-column-title { min-width: 0; }
+
+/* Keep the collapse control visible at the start of the desktop toolbar. */
+.column-explorer-collapse-btn {
+	flex-shrink: 0;
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+	border: 1px solid var(--background-modifier-border);
+}

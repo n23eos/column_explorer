@@ -6,7 +6,7 @@ import { FolderSuggestModal, IconSuggestModal, QuickLookModal } from "./modals";
 import { FOLDER_COLOR_KEYS, FolderColorKey, SortMode } from "./settings";
 import type { ColumnExplorerView } from "./view";
 
-function sortLabel(mode: SortMode): string {
+export function sortLabel(mode: SortMode): string {
 	const keys: Record<SortMode, string> = {
 		"name-asc": "sortNameAsc", "name-desc": "sortNameDesc",
 		"mtime-desc": "sortMtimeDesc", "mtime-asc": "sortMtimeAsc",
@@ -14,6 +14,47 @@ function sortLabel(mode: SortMode): string {
 		"size-desc": "sortSizeDesc", "size-asc": "sortSizeAsc",
 	};
 	return t(keys[mode]);
+}
+
+function setFolderSortMode(view: ColumnExplorerView, folder: TFolder, mode: SortMode | null) {
+	const rest = { ...view.plugin.settings.columnSortModes };
+	if (mode === null) delete rest[folder.path];
+	else rest[folder.path] = mode;
+	view.plugin.settings.columnSortModes = rest;
+	void view.plugin.saveSettings();
+	view.render();
+}
+
+function fillFolderSortItems(view: ColumnExplorerView, target: Menu, folder: TFolder, afterChange?: () => void) {
+	const apply = (mode: SortMode | null) => { setFolderSortMode(view, folder, mode); afterChange?.(); };
+	const current = view.plugin.settings.columnSortModes[folder.path];
+	target.addItem(i => i.setTitle(t("sortDefault")).setChecked(current === undefined)
+		.onClick(() => apply(null)));
+	for (const mode of SORT_MODE_VALUES) {
+		target.addItem(i => i.setTitle(sortLabel(mode)).setChecked(current === mode)
+			.onClick(() => apply(mode)));
+	}
+}
+
+/** Folder sort menu used by the visible header button. */
+export function showColumnSortMenu(
+	view: ColumnExplorerView,
+	e: MouseEvent | KeyboardEvent,
+	folder: TFolder,
+	anchor: HTMLElement,
+) {
+	const menu = new Menu();
+	fillFolderSortItems(view, menu, folder, () => {
+		view.columnsEl?.querySelector<HTMLElement>(
+			`.column-explorer-column[data-folder-path="${CSS.escape(folder.path)}"] .column-explorer-sort-button`
+		)?.focus();
+	});
+	if (e instanceof MouseEvent && e.detail > 0) {
+		menu.showAtMouseEvent(e);
+	} else {
+		const rect = anchor.getBoundingClientRect();
+		menu.showAtPosition({ x: rect.left, y: rect.bottom, width: rect.width }, anchor.ownerDocument);
+	}
 }
 
 function copyToClipboard(text: string, notice: string) {
@@ -33,6 +74,20 @@ function colorMenuTitle(colorKey: FolderColorKey | null, label: string): Documen
 		const text = frag.createSpan({ text: label });
 		// Красим и сам текст пункта — цвет виден сразу, а не только точкой
 		if (colorKey) text.style.color = `var(--color-${colorKey})`;
+	});
+}
+
+function addSubmenu(menu: Menu, title: string, icon: string, fillItems: (target: Menu) => void) {
+	menu.addItem((item: MenuItem) => {
+		item.setTitle(title).setIcon(icon);
+		// setSubmenu есть в рантайме Obsidian, но отсутствует в публичных типах.
+		// На старом или изменённом API сохраняем действия в родительском меню.
+		const withSubmenu = item as MenuItem & { setSubmenu?: () => Menu };
+		if (typeof withSubmenu.setSubmenu === "function") {
+			fillItems(withSubmenu.setSubmenu());
+		} else {
+			fillItems(menu);
+		}
 	});
 }
 
@@ -68,17 +123,7 @@ function addFolderColorMenu(view: ColumnExplorerView, menu: Menu, folder: TFolde
 			}));
 	};
 
-	menu.addItem((item: MenuItem) => {
-		item.setTitle(t("folderColor")).setIcon("palette");
-		// setSubmenu есть в рантайме, но отсутствует в публичных типах;
-		// при его пропаже пункты лягут плоско в родительское меню
-		const withSubmenu = item as MenuItem & { setSubmenu?: () => Menu };
-		if (typeof withSubmenu.setSubmenu === "function") {
-			fillColorItems(withSubmenu.setSubmenu());
-		} else {
-			fillColorItems(menu);
-		}
-	});
+	addSubmenu(menu, t("folderColor"), "palette", fillColorItems);
 }
 
 export function showFileMenu(view: ColumnExplorerView, e: MouseEvent, f: TAbstractFile, depth: number) {
@@ -95,7 +140,7 @@ export function showFileMenu(view: ColumnExplorerView, e: MouseEvent, f: TAbstra
 		menu.addItem(i => i.setTitle(t("moveTo")).setIcon("folder-input")
 			.onClick(() => new FolderSuggestModal(app, (target) => {
 				void moveFiles(app, paths, target).then(() => view.clearMulti());
-			}).open()));
+			}, paths).open()));
 		menu.addItem(i => i.setTitle(t("duplicateN", { n: paths.length })).setIcon("copy")
 			.onClick(async () => {
 				for (const p of paths) {
@@ -104,6 +149,7 @@ export function showFileMenu(view: ColumnExplorerView, e: MouseEvent, f: TAbstra
 					else if (file instanceof TFolder) await duplicateFolder(app, file);
 				}
 			}));
+		menu.addSeparator();
 		menu.addItem(i => i.setTitle(t("deleteN", { n: paths.length })).setIcon("trash")
 			.onClick(() => view.deleteMany(paths)));
 		menu.showAtMouseEvent(e);
@@ -130,7 +176,7 @@ export function showFileMenu(view: ColumnExplorerView, e: MouseEvent, f: TAbstra
 		// На телефоне колонки превью нет — Quick Look открывается из меню
 		if (Platform.isMobile) {
 			menu.addItem(i => i.setTitle(t("preview")).setIcon("eye")
-				.onClick(() => new QuickLookModal(app, view, f).open()));
+				.onClick(() => new QuickLookModal(app, view, f, view.quickLookFiles(f, depth)).open()));
 		}
 		menu.addItem(i => i.setTitle(t("openNewTab")).setIcon("file-plus-2")
 			.onClick(() => app.workspace.getLeaf("tab").openFile(f)));
@@ -164,36 +210,38 @@ export function showFileMenu(view: ColumnExplorerView, e: MouseEvent, f: TAbstra
 	menu.addItem(i => i.setTitle(isFav ? t("removeFavorite") : t("addFavorite")).setIcon(isFav ? "star-off" : "star")
 		.onClick(() => view.toggleFavorite(f.path)));
 	menu.addItem(i => i.setTitle(t("moveTo")).setIcon("folder-input")
-		.onClick(() => new FolderSuggestModal(app, (target) => void moveFiles(app, [f.path], target)).open()));
+		.onClick(() => new FolderSuggestModal(app, (target) => void moveFiles(app, [f.path], target), [f.path]).open()));
 	menu.addItem(i => i.setTitle(t("rename")).setIcon("pencil")
 		.onClick(() => view.startRename(f)));
-	menu.addItem(i => i.setTitle(t("delete")).setIcon("trash")
-		.onClick(() => view.deleteMany([f.path])));
-	menu.addSeparator();
-	menu.addItem(i => i.setTitle(t("copyPath")).setIcon("clipboard-copy")
-		.onClick(() => copyToClipboard(f.path, t("pathCopied"))));
-	// Абсолютный системный путь с shell-экранированием (как драг в терминал).
-	// Только для десктопа — на мобильном базового пути файловой системы нет
-	const adapter = app.vault.adapter;
-	if (adapter instanceof FileSystemAdapter) {
-		menu.addItem(i => i.setTitle(t("copyFullPath")).setIcon("terminal")
-			.onClick(() => copyToClipboard(shellEscapePath(adapter.getBasePath() + "/" + f.path), t("pathCopied"))));
-	}
-	if (f instanceof TFile) {
-		menu.addItem(i => i.setTitle(t("copyWikiLink")).setIcon("brackets")
-			.onClick(() => copyToClipboard("[[" + app.metadataCache.fileToLinktext(f, "", false) + "]]", t("linkCopied"))));
-		menu.addItem(i => i.setTitle(t("copyMdLink")).setIcon("link")
-			.onClick(() => copyToClipboard(app.fileManager.generateMarkdownLink(f, ""), t("linkCopied"))));
-		menu.addItem(i => i.setTitle(t("copyObsidianUrl")).setIcon("external-link")
-			.onClick(() => {
-				const url = "obsidian://open?vault=" + encodeURIComponent(app.vault.getName())
-					+ "&file=" + encodeURIComponent(f.path);
-				copyToClipboard(url, t("linkCopied"));
-			}));
-	}
+
+	addSubmenu(menu, t("copyAs"), "copy", (target) => {
+		target.addItem(i => i.setTitle(t("copyPath")).setIcon("clipboard-copy")
+			.onClick(() => copyToClipboard(f.path, t("pathCopied"))));
+		// Полный системный путь доступен только у desktop filesystem adapter.
+		const adapter = app.vault.adapter;
+		if (adapter instanceof FileSystemAdapter) {
+			target.addItem(i => i.setTitle(t("copyFullPath")).setIcon("terminal")
+				.onClick(() => copyToClipboard(shellEscapePath(adapter.getBasePath() + "/" + f.path), t("pathCopied"))));
+		}
+		if (f instanceof TFile) {
+			target.addItem(i => i.setTitle(t("copyWikiLink")).setIcon("brackets")
+				.onClick(() => copyToClipboard("[[" + app.metadataCache.fileToLinktext(f, "", false) + "]]", t("linkCopied"))));
+			target.addItem(i => i.setTitle(t("copyMdLink")).setIcon("link")
+				.onClick(() => copyToClipboard(app.fileManager.generateMarkdownLink(f, ""), t("linkCopied"))));
+			target.addItem(i => i.setTitle(t("copyObsidianUrl")).setIcon("external-link")
+				.onClick(() => {
+					const url = "obsidian://open?vault=" + encodeURIComponent(app.vault.getName())
+						+ "&file=" + encodeURIComponent(f.path);
+					copyToClipboard(url, t("linkCopied"));
+				}));
+		}
+	});
 
 	// Стандартное меню Obsidian: пункты ядра и других плагинов
 	app.workspace.trigger("file-menu", menu, f, "file-explorer-context-menu", view.leaf);
+	menu.addSeparator();
+	menu.addItem(i => i.setTitle(t("delete")).setIcon("trash")
+		.onClick(() => view.deleteMany([f.path])));
 
 	menu.showAtMouseEvent(e);
 }
@@ -243,21 +291,7 @@ export function showColumnHeaderMenu(view: ColumnExplorerView, e: MouseEvent, fo
 		.onClick(() => void view.createNote(folder, "canvas", "{}")));
 	menu.addSeparator();
 
-	const current = view.plugin.settings.columnSortModes[folder.path];
-	const setMode = (mode: SortMode | null) => {
-		const rest = { ...view.plugin.settings.columnSortModes };
-		if (mode === null) delete rest[folder.path];
-		else rest[folder.path] = mode;
-		view.plugin.settings.columnSortModes = rest;
-		void view.plugin.saveSettings();
-		view.render();
-	};
-	menu.addItem(i => i.setTitle(t("sortDefault")).setChecked(current === undefined)
-		.onClick(() => setMode(null)));
-	for (const mode of SORT_MODE_VALUES) {
-		menu.addItem(i => i.setTitle(sortLabel(mode)).setChecked(current === mode)
-			.onClick(() => setMode(mode)));
-	}
+	fillFolderSortItems(view, menu, folder);
 	menu.showAtMouseEvent(e);
 }
 

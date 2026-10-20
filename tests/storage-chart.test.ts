@@ -28,13 +28,18 @@ vi.mock("obsidian", async () => {
 	return { ...actual, Menu: TrackedMenu };
 });
 
-async function mountChart(paths: string[], settings: Partial<ColumnExplorerSettings> = {}) {
+async function mountChart(
+	paths: string[],
+	settings: Partial<ColumnExplorerSettings> = {},
+	configure?: (app: ReturnType<typeof makeApp>, vault: ReturnType<typeof makeVault>) => void,
+) {
 	const vault = makeVault(paths);
 	// Файлам нужен ненулевой размер, иначе метрика «Размер» даёт пустой круг
 	for (const node of vault.index.values()) {
 		if (node instanceof TFile) node.stat = { ...node.stat, size: 1024 };
 	}
 	const app = makeApp(vault);
+	configure?.(app, vault);
 	const plugin = makePlugin(app, { showRecents: false, showBookmarks: false, showCalendar: false, ...settings });
 	const view = new ColumnExplorerView({ getRoot: () => ({}) } as never, plugin as unknown as ColumnExplorerPlugin);
 	(view as unknown as { app: unknown }).app = app;
@@ -122,6 +127,26 @@ describe("zooming", () => {
 });
 
 describe("metrics", () => {
+	test("does not read markdown until Words is selected", async () => {
+		let reads = 0;
+		const { view } = await mountChart(["a.md", "b.md"], {}, (app) => {
+			app.vault.cachedRead = () => {
+				reads++;
+				return Promise.resolve("one two");
+			};
+		});
+		const buttons = view.contentEl.querySelectorAll<HTMLButtonElement>(".column-explorer-du-seg-btn");
+
+		expect(reads).toBe(0);
+		buttons[2].click();
+		expect(reads).toBe(0);
+
+		buttons[1].click();
+		await vi.waitFor(() => expect(reads).toBe(2));
+		await vi.waitFor(() => expect(buttons[1].classList.contains("is-active")).toBe(true));
+		expect(centerText(view).value).toBe("4 words");
+	});
+
 	test("switching to files moves the active button and redraws", async () => {
 		const { view } = await mountChart(["notes/a.md", "notes/b.md"]);
 		const buttons = view.contentEl.querySelectorAll<HTMLButtonElement>(".column-explorer-du-seg-btn");
@@ -137,6 +162,118 @@ describe("metrics", () => {
 		const { view } = await mountChart(["a.md", "b.md"]);
 
 		expect(centerText(view)).toEqual({ name: "TestVault", value: "2.0 KB" });
+	});
+});
+
+describe("scan lifecycle", () => {
+	test("a failed refresh does not block the next refresh", async () => {
+		const { view, app } = await mountChart(["a.md"]);
+		const refresh = view.contentEl.querySelector<HTMLButtonElement>(".column-explorer-du-icon-btn")!;
+		const workingRoot = app.vault.getRoot;
+		app.vault.getRoot = () => { throw new Error("scan boom"); };
+
+		refresh.click();
+		await Promise.resolve();
+		await Promise.resolve();
+
+		let roots = 0;
+		app.vault.getRoot = () => { roots++; return workingRoot(); };
+		refresh.click();
+		await vi.waitFor(() => expect(roots).toBe(1));
+	});
+
+	test("keeps hidden changes dirty and refreshes them on the next mount", async () => {
+		let reads = 0;
+		const { view, app, vault } = await mountChart(["a.md"], {}, (fakeApp) => {
+			fakeApp.vault.cachedRead = () => {
+				reads++;
+				return Promise.resolve("words must stay lazy");
+			};
+		});
+		const controller = view.sunburstController();
+		const file = vault.getAbstractFileByPath("a.md") as TFile;
+		expect(centerText(view).value).toBe("1.0 KB");
+
+		controller.unmount();
+		file.stat = { ...file.stat, size: 4096, mtime: file.stat.mtime + 1 };
+		app.vault.trigger("modify", file);
+		await Promise.resolve();
+
+		expect(controller.el.querySelector(".column-explorer-du-center-value")?.textContent).toBe("1.0 KB");
+		expect(reads).toBe(0);
+
+		const host = document.body.createDiv();
+		controller.mount(host);
+		await vi.waitFor(() => {
+			expect(controller.el.querySelector(".column-explorer-du-center-value")?.textContent).toBe("4.0 KB");
+		});
+		expect(reads).toBe(0);
+	});
+
+	test("an event during a word scan cannot leave a stale count", async () => {
+		let reads = 0;
+		let finishFirstRead: ((content: string) => void) | undefined;
+		const { view, app, vault } = await mountChart(["a.md"], {}, (fakeApp) => {
+			fakeApp.vault.cachedRead = () => {
+				reads++;
+				if (reads === 1) {
+					return new Promise<string>((resolve) => { finishFirstRead = resolve; });
+				}
+				return Promise.resolve("new words");
+			};
+		});
+		const words = view.contentEl.querySelectorAll<HTMLButtonElement>(".column-explorer-du-seg-btn")[1];
+		const file = vault.getAbstractFileByPath("a.md") as TFile;
+
+		words.click();
+		await vi.waitFor(() => expect(reads).toBe(1));
+		file.stat = { ...file.stat, mtime: file.stat.mtime + 1 };
+		app.vault.trigger("modify", file);
+		finishFirstRead?.("old");
+
+		await vi.waitFor(() => expect(reads).toBe(2));
+		await vi.waitFor(() => expect(centerText(view).value).toBe("2 words"));
+	});
+
+	test("mounting the same chart does not restart an active word scan", async () => {
+		let reads = 0;
+		let finishRead: ((content: string) => void) | undefined;
+		const { view } = await mountChart(["a.md"], {}, (fakeApp) => {
+			fakeApp.vault.cachedRead = () => {
+				reads++;
+				return new Promise<string>((resolve) => { finishRead = resolve; });
+			};
+		});
+		const controller = view.sunburstController();
+		const words = view.contentEl.querySelectorAll<HTMLButtonElement>(".column-explorer-du-seg-btn")[1];
+
+		words.click();
+		await vi.waitFor(() => expect(reads).toBe(1));
+		controller.mount(document.body.createDiv());
+		finishRead?.("one");
+
+		await vi.waitFor(() => {
+			expect(controller.el.querySelector(".column-explorer-du-center-value")?.textContent).toBe("1 word");
+		});
+		expect(reads).toBe(1);
+	});
+
+	test("destroyed controller ignores later vault events", async () => {
+		let reads = 0;
+		const { view, app, vault } = await mountChart(["a.md"], {}, (fakeApp) => {
+			fakeApp.vault.cachedRead = () => {
+				reads++;
+				return Promise.resolve("one");
+			};
+		});
+		const controller = view.sunburstController();
+		controller.onunload();
+
+		app.vault.trigger("modify", vault.getAbstractFileByPath("a.md") as TFile);
+		await Promise.resolve();
+
+		expect(reads).toBe(0);
+		expect(controller.el.isConnected).toBe(false);
 	});
 });
 

@@ -8,7 +8,7 @@
  * `src/settings.ts` (ради DEFAULT_SETTINGS); всё остальное API сознательно
  * не воспроизводится.
  *
- * Подключается через `resolve.alias` в vitest.config.ts.
+ * Подключается через `resolve.alias` в vitest.config.mts.
  */
 
 export class TAbstractFile {
@@ -276,6 +276,9 @@ export class Modal extends Component {
 }
 
 export class FuzzySuggestModal<T> extends Modal {
+	inputEl: HTMLInputElement = document.createElement("input");
+	emptyStateText = "";
+	onOpen(): void { /* populated by Obsidian */ }
 	getItems(): T[] { return []; }
 	getItemText(_item: T): string { return ""; }
 	onChooseItem(_item: T): void { /* no-op */ }
@@ -285,14 +288,15 @@ export class FuzzySuggestModal<T> extends Modal {
 export interface FuzzyMatch<T> { item: T; match: SearchResult }
 
 export class Menu {
-	items: { title: string | DocumentFragment; callback?: () => void }[] = [];
+	items: { title: string | DocumentFragment; callback?: () => void; submenu?: Menu }[] = [];
+	separatorIndices: number[] = [];
 	addItem(cb: (item: MenuItem) => void): this {
 		const item = new MenuItem();
 		cb(item);
-		this.items.push({ title: item.titleValue, callback: item.callbackValue });
+		this.items.push({ title: item.titleValue, callback: item.callbackValue, submenu: item.submenuValue });
 		return this;
 	}
-	addSeparator(): this { return this; }
+	addSeparator(): this { this.separatorIndices.push(this.items.length); return this; }
 	showAtMouseEvent(): void { /* no-op */ }
 	showAtPosition(): void { /* no-op */ }
 }
@@ -300,11 +304,13 @@ export class Menu {
 export class MenuItem {
 	titleValue: string | DocumentFragment = "";
 	callbackValue?: () => void;
+	submenuValue?: Menu;
 	setTitle(title: string | DocumentFragment): this { this.titleValue = title; return this; }
 	setIcon(): this { return this; }
 	setChecked(): this { return this; }
 	setDisabled(): this { return this; }
 	onClick(cb: () => void): this { this.callbackValue = cb; return this; }
+	setSubmenu(): Menu { this.submenuValue = new Menu(); return this.submenuValue; }
 }
 
 export class FileSystemAdapter {
@@ -357,3 +363,5 @@ export function prepareFuzzySearch(query: string): (text: string) => SearchResul
 export function sortSearchResults(results: { match: SearchResult }[]): void {
 	results.sort((a, b) => b.match.score - a.match.score);
 }
+
+export const requireApiVersion = (_version: string): boolean => true;

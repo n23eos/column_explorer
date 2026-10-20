@@ -15,7 +15,10 @@ import { makeView } from "./setup/view";
 function appWith(paths: string[]) {
 	const vault = makeVault(paths);
 	const app = new MockApp();
-	app.vault = { getRoot: () => vault.getRoot() };
+	app.vault = {
+		getRoot: () => vault.getRoot(),
+		getAbstractFileByPath: (path: string) => vault.getAbstractFileByPath(path),
+	};
 	return { app: app as unknown as App, vault };
 }
 
@@ -66,16 +69,21 @@ describe("ConfirmModal", () => {
 });
 
 describe("QuickLookModal", () => {
-	function quickLook(path: string) {
-		const vault = makeVault([path]);
+	function quickLook(path: string, paths = [path]) {
+		const vault = makeVault(paths);
 		const view = makeView(vault);
 		(view.app.vault as unknown as { cachedRead: () => Promise<string> }).cachedRead = () => Promise.resolve("");
 		const file = vault.getAbstractFileByPath(path) as TFile;
-		return new QuickLookModal(view.app as unknown as App, view as ColumnExplorerView, file);
+		const files = paths.map((candidate) => vault.getAbstractFileByPath(candidate) as TFile);
+		return {
+			modal: new QuickLookModal(view.app as unknown as App, view as ColumnExplorerView, file, files),
+			vault,
+			view,
+		};
 	}
 
 	test("renders the preview body", () => {
-		const modal = quickLook("a.md");
+		const { modal } = quickLook("a.md");
 
 		modal.open();
 
@@ -84,7 +92,7 @@ describe("QuickLookModal", () => {
 	});
 
 	test("space closes the modal", () => {
-		const modal = quickLook("a.md");
+		const { modal } = quickLook("a.md");
 		modal.open();
 
 		asMock(modal).scope.keys.get(" ")?.();
@@ -93,7 +101,7 @@ describe("QuickLookModal", () => {
 	});
 
 	test("closing unloads the markdown owner and clears the content", () => {
-		const modal = quickLook("a.md");
+		const { modal } = quickLook("a.md");
 		const unload = vi.spyOn(Component.prototype, "unload");
 		modal.open();
 
@@ -101,6 +109,85 @@ describe("QuickLookModal", () => {
 
 		expect(unload).toHaveBeenCalled();
 		expect(modal.contentEl.childNodes).toHaveLength(0);
+		unload.mockRestore();
+	});
+
+	test("moves through the snapshot with buttons and stops at its boundaries", () => {
+		const { modal } = quickLook("b.md", ["a.md", "b.md", "c.md"]);
+		modal.open();
+		const previous = modal.contentEl.querySelector<HTMLButtonElement>(".column-explorer-quicklook-prev");
+		const next = modal.contentEl.querySelector<HTMLButtonElement>(".column-explorer-quicklook-next");
+
+		expect(modal.contentEl.querySelector(".column-explorer-preview-name")?.textContent).toBe("b");
+		expect(modal.contentEl.querySelector(".column-explorer-quicklook-position")?.textContent).toContain("2");
+		next?.click();
+		expect(modal.contentEl.querySelector(".column-explorer-preview-name")?.textContent).toBe("c");
+		expect(next?.disabled).toBe(true);
+		next?.click();
+		expect(modal.contentEl.querySelector(".column-explorer-preview-name")?.textContent).toBe("c");
+		previous?.click();
+		previous?.click();
+		expect(modal.contentEl.querySelector(".column-explorer-preview-name")?.textContent).toBe("a");
+		expect(previous?.disabled).toBe(true);
+	});
+
+	test("uses ArrowLeft and ArrowRight without changing the editor", () => {
+		const { modal, view } = quickLook("a.md", ["a.md", "b.md"]);
+		const getLeaf = vi.spyOn(view.app.workspace, "getLeaf");
+		modal.open();
+
+		asMock(modal).scope.keys.get("ArrowRight")?.();
+		expect(modal.contentEl.querySelector(".column-explorer-preview-name")?.textContent).toBe("b");
+		asMock(modal).scope.keys.get("ArrowLeft")?.();
+		expect(modal.contentEl.querySelector(".column-explorer-preview-name")?.textContent).toBe("a");
+		expect(getLeaf).not.toHaveBeenCalled();
+	});
+
+	test("does not consume navigation keys while a media control has focus", () => {
+		const { modal } = quickLook("song.mp3", ["song.mp3", "next.md"]);
+		document.body.appendChild(modal.contentEl);
+		modal.open();
+		modal.contentEl.querySelector<HTMLAudioElement>("audio")?.focus();
+
+		asMock(modal).scope.keys.get("ArrowRight")?.();
+		asMock(modal).scope.keys.get(" ")?.();
+
+		expect(modal.contentEl.querySelector(".column-explorer-preview-name")?.textContent).toBe("song.mp3");
+		expect(asMock(modal).isOpen).toBe(true);
+	});
+
+	test("prunes deleted files when navigating", () => {
+		const { modal, vault } = quickLook("a.md", ["a.md", "b.md", "c.md"]);
+		modal.open();
+		vault.index.delete("b.md");
+
+		asMock(modal).scope.keys.get("ArrowRight")?.();
+
+		expect(modal.contentEl.querySelector(".column-explorer-preview-name")?.textContent).toBe("c");
+		expect(modal.contentEl.querySelector(".column-explorer-quicklook-position")?.textContent).toContain("2");
+	});
+
+	test("shows an unavailable state when every snapshotted file was deleted", () => {
+		const { modal, vault } = quickLook("a.md", ["a.md", "b.md"]);
+		modal.open();
+		vault.index.delete("a.md");
+		vault.index.delete("b.md");
+
+		asMock(modal).scope.keys.get("ArrowRight")?.();
+
+		expect(modal.contentEl.querySelector(".column-explorer-quicklook-unavailable")).not.toBeNull();
+		expect(modal.contentEl.querySelector<HTMLButtonElement>(".column-explorer-quicklook-prev")?.disabled).toBe(true);
+		expect(modal.contentEl.querySelector<HTMLButtonElement>(".column-explorer-quicklook-next")?.disabled).toBe(true);
+	});
+
+	test("unloads the previous preview owner on every file change", () => {
+		const { modal } = quickLook("a.md", ["a.md", "b.md"]);
+		const unload = vi.spyOn(Component.prototype, "unload");
+		modal.open();
+
+		asMock(modal).scope.keys.get("ArrowRight")?.();
+
+		expect(unload).toHaveBeenCalledOnce();
 		unload.mockRestore();
 	});
 });
@@ -130,6 +217,36 @@ describe("FolderSuggestModal", () => {
 		modal.onChooseItem(vault.getAbstractFileByPath("one") as TFolder);
 
 		expect(chosen).toEqual(["one"]);
+	});
+
+	test("excludes a moved folder, its descendants and its current parent", () => {
+		const { app } = appWith(["project/sub/note.md", "other/note.md"]);
+
+		const items = new FolderSuggestModal(app, () => { /* no-op */ }, ["project"]).getItems();
+
+		expect(items.map((folder) => folder.path)).toEqual(["other"]);
+	});
+
+	test("excludes a no-op parent shared by all source files", () => {
+		const { app } = appWith(["one/a.md", "one/b.md", "two/c.md"]);
+
+		const items = new FolderSuggestModal(app, () => { /* no-op */ }, ["one/a.md", "one/b.md"]).getItems();
+
+		expect(items.map((folder) => folder.path)).not.toContain("one");
+	});
+
+	test("excludes targets where every remaining source collides", () => {
+		const { app } = appWith(["one/a.md", "two/a.md"]);
+		const items = new FolderSuggestModal(app, () => { /* no-op */ }, ["one/a.md", "two/a.md"]).getItems();
+		expect(items.map((folder) => folder.path)).toEqual(["/"]);
+	});
+
+	test("keeps a parent that moves at least one source from another folder", () => {
+		const { app } = appWith(["one/a.md", "two/b.md"]);
+
+		const items = new FolderSuggestModal(app, () => { /* no-op */ }, ["one/a.md", "two/b.md"]).getItems();
+
+		expect(items.map((folder) => folder.path)).toEqual(["/", "one", "two"]);
 	});
 });
 

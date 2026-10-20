@@ -22,6 +22,15 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm run test:coverage
       - run: npm run build
+      - name: Check bundle size
+        run: |
+          limit=327680
+          size=$(wc -c < main.js)
+          echo "main.js: $size bytes (limit $limit)"
+          if [ "$size" -gt "$limit" ]; then
+            echo "::error::main.js exceeds $limit bytes"
+            exit 1
+          fi
       # Тег с дефисом (1.13.0-beta.1) — бета: релиз помечается pre-release и
       # не становится Latest, а в ассеты кладётся manifest-beta.json под
       # именем manifest.json. Корневой manifest.json при этом не меняется,

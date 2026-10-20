@@ -5,24 +5,43 @@ import { availablePath, errorMessage } from "./pure";
 const UNDO_NOTICE_MS = 8000;
 
 interface MoveRecord { from: string; to: string }
+interface UndoMoveResult { restored: number; skipped: number; failed: number }
+export interface MoveFilesResult { movedPaths: string[]; remainingPaths: string[] }
 
 /**
  * Move a set of paths into a target folder. Shared by drag & drop and
  * the "Move to folder…" action. Returns the number of items moved.
  */
 export async function moveFiles(app: App, paths: string[], target: TFolder): Promise<number> {
+	const result = await moveFilesDetailed(app, paths, target);
+	return result.movedPaths.length;
+}
+
+/**
+ * Move paths and report which selected roots still need a retry. Missing paths
+ * and items already in the target are complete no-ops. Nested selections are
+ * represented by their selected ancestor so a moved folder is not retried as
+ * stale missing children.
+ */
+export async function moveFilesDetailed(app: App, paths: string[], target: TFolder): Promise<MoveFilesResult> {
+	const selectedPaths = [...new Set(paths)].filter((path) =>
+		!paths.some((other) => other !== path && path.startsWith(other + "/"))
+	);
 	const moves: MoveRecord[] = [];
-	for (const path of paths) {
+	const remainingPaths: string[] = [];
+	for (const path of selectedPaths) {
 		const src = app.vault.getAbstractFileByPath(path);
-		if (!src || src.path === target.path) continue;
-		if (target.path.startsWith(src.path + "/")) {
+		if (!src) continue;
+		if (src.path === target.path || (src instanceof TFolder && src.isRoot()) || target.path.startsWith(src.path + "/")) {
 			new Notice(t("cantMoveIntoSelf"));
+			remainingPaths.push(path);
 			continue;
 		}
 		if (src.parent?.path === target.path) continue;
 		const dest = normalizePath((target.isRoot() ? "" : target.path + "/") + src.name);
 		if (app.vault.getAbstractFileByPath(dest)) {
 			new Notice(t("alreadyExists", { name: src.name }));
+			remainingPaths.push(path);
 			continue;
 		}
 		// Сбой одного файла не должен рвать всю пачку — сообщаем и идём дальше
@@ -31,10 +50,11 @@ export async function moveFiles(app: App, paths: string[], target: TFolder): Pro
 			moves.push({ from: path, to: dest });
 		} catch (err) {
 			new Notice(t("moveFailed", { name: src.name, error: errorMessage(err) }));
+			remainingPaths.push(path);
 		}
 	}
 	if (moves.length > 0) showUndoMoveNotice(app, moves);
-	return moves.length;
+	return { movedPaths: moves.map((move) => move.from), remainingPaths };
 }
 
 /** Notice with an inline "Undo" action that moves the files back. */
@@ -45,21 +65,32 @@ function showUndoMoveNotice(app: App, moves: MoveRecord[]) {
 	const notice = new Notice(frag, UNDO_NOTICE_MS);
 	undoBtn.addEventListener("click", () => {
 		notice.hide();
-		void undoMoves(app, moves);
+		void undoMoves(app, moves).then(({ restored, skipped, failed }) => {
+			new Notice(t("undoMoveResult", { restored, skipped, failed }));
+		});
 	});
 }
 
-async function undoMoves(app: App, moves: MoveRecord[]) {
+async function undoMoves(app: App, moves: MoveRecord[]): Promise<UndoMoveResult> {
+	let restored = 0;
+	let skipped = 0;
+	let failed = 0;
 	for (const move of moves) {
 		const f = app.vault.getAbstractFileByPath(move.to);
 		// Файл мог быть удалён/переименован, а исходное имя — занято заново
-		if (!f || app.vault.getAbstractFileByPath(move.from)) continue;
+		if (!f || app.vault.getAbstractFileByPath(move.from)) {
+			skipped++;
+			continue;
+		}
 		try {
 			await app.fileManager.renameFile(f, move.from);
+			restored++;
 		} catch (err) {
+			failed++;
 			new Notice(t("moveFailed", { name: f.name, error: errorMessage(err) }));
 		}
 	}
+	return { restored, skipped, failed };
 }
 
 /**
@@ -86,10 +117,11 @@ export async function importExternalFiles(app: App, files: readonly File[], targ
 
 export async function duplicateFile(app: App, f: TFile): Promise<void> {
 	const dir = f.parent && !f.parent.isRoot() ? f.parent.path + "/" : "";
+	const extension = f.extension ? "." + f.extension : "";
 	let n = 1;
-	let path = normalizePath(dir + f.basename + " copy." + f.extension);
+	let path = normalizePath(dir + f.basename + " copy" + extension);
 	while (app.vault.getAbstractFileByPath(path)) {
-		path = normalizePath(dir + f.basename + " copy " + n++ + "." + f.extension);
+		path = normalizePath(dir + f.basename + " copy " + n++ + extension);
 	}
 	try {
 		await app.vault.copy(f, path);
@@ -109,7 +141,7 @@ export async function copyFiles(app: App, paths: string[], target: TFolder): Pro
 		const src = app.vault.getAbstractFileByPath(path);
 		if (!src) continue;
 		// Копия папки внутрь самой себя зациклила бы рекурсию
-		if (src.path === target.path || target.path.startsWith(src.path + "/")) {
+		if (src instanceof TFolder && (src.isRoot() || src.path === target.path || target.path.startsWith(src.path + "/"))) {
 			new Notice(t("cantMoveIntoSelf"));
 			continue;
 		}
@@ -131,6 +163,10 @@ export async function copyFiles(app: App, paths: string[], target: TFolder): Pro
 
 /** Рекурсивная копия папки рядом с исходной, под именем "X copy". */
 export async function duplicateFolder(app: App, folder: TFolder): Promise<void> {
+	if (folder.isRoot()) {
+		new Notice(t("cantMoveIntoSelf"));
+		return;
+	}
 	const dir = folder.parent && !folder.parent.isRoot() ? folder.parent.path + "/" : "";
 	let n = 1;
 	let dest = normalizePath(dir + folder.name + " copy");
@@ -145,12 +181,50 @@ export async function duplicateFolder(app: App, folder: TFolder): Promise<void> 
 }
 
 async function copyFolderInto(app: App, folder: TFolder, dest: string): Promise<void> {
-	await app.vault.createFolder(dest);
+	const slash = dest.lastIndexOf("/");
+	const parentPath = slash === -1 ? "" : dest.slice(0, slash);
+	const destName = slash === -1 ? dest : dest.slice(slash + 1);
+	const taken = new Set(app.vault.getAllLoadedFiles().map((file) => file.path));
+	const stagingPath = normalizePath(availablePath(parentPath, destName + " (copying)", taken));
+	let stagingRoot: TFolder | null = null;
+	let contentsCopied = false;
+	let publishAttempted = false;
+
+	try {
+		stagingRoot = await app.vault.createFolder(stagingPath);
+		await copyFolderChildren(app, folder, stagingPath);
+		contentsCopied = true;
+		if (app.vault.getAbstractFileByPath(dest)) throw new Error(t("alreadyExists", { name: destName }));
+		publishAttempted = true;
+		await app.fileManager.renameFile(stagingRoot, dest);
+	} catch (err) {
+		// Some adapters can report an error after the rename has completed.
+		if (contentsCopied && publishAttempted && stagingRoot && app.vault.getAbstractFileByPath(dest) === stagingRoot) return;
+		const preservedPath = preservedCopyPath(app, stagingPath, stagingRoot);
+		if (preservedPath) new Notice(t("copyPartialPreserved", { path: preservedPath }));
+		throw err;
+	}
+}
+
+async function copyFolderChildren(
+	app: App,
+	folder: TFolder,
+	dest: string
+): Promise<void> {
 	for (const child of folder.children) {
 		const childDest = dest + "/" + child.name;
-		if (child instanceof TFolder) await copyFolderInto(app, child, childDest);
-		else if (child instanceof TFile) await app.vault.copy(child, childDest);
+		if (child instanceof TFolder) {
+			await app.vault.createFolder(childDest);
+			await copyFolderChildren(app, child, childDest);
+		} else if (child instanceof TFile) {
+			await app.vault.copy(child, childDest);
+		}
 	}
+}
+
+function preservedCopyPath(app: App, stagingPath: string, stagingRoot: TFolder | null): string | null {
+	if (stagingRoot && app.vault.getAbstractFileByPath(stagingRoot.path) === stagingRoot) return stagingRoot.path;
+	return app.vault.getAbstractFileByPath(stagingPath) ? stagingPath : null;
 }
 
 export async function trashFiles(app: App, paths: string[]): Promise<void> {

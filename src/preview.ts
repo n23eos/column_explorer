@@ -19,7 +19,13 @@ export function renderPreviewColumn(view: ColumnExplorerView, container: HTMLEle
  * `owner` управляет жизнью отрисованного markdown (эмбеды, ссылки): его
  * выгрузка снимает всё, что отрисовал MarkdownRenderer.
  */
-export function renderPreviewContent(view: ColumnExplorerView, inner: HTMLElement, file: TFile, owner: Component) {
+export function renderPreviewContent(
+	view: ColumnExplorerView,
+	inner: HTMLElement,
+	file: TFile,
+	owner: Component,
+	isCurrent: () => boolean = () => inner.isConnected,
+) {
 	if (!renderMediaPreview(view, inner, file)) {
 		const big = inner.createDiv({ cls: "column-explorer-preview-icon" });
 		setIcon(big, iconFor(file));
@@ -37,7 +43,7 @@ export function renderPreviewContent(view: ColumnExplorerView, inner: HTMLElemen
 	});
 
 	if (file.extension === "md" && view.plugin.settings.showMarkdownPreview) {
-		void renderMarkdownSnippet(view, inner, file, owner);
+		void renderMarkdownSnippet(view, inner, file, owner, isCurrent);
 	}
 }
 
@@ -45,7 +51,7 @@ export function renderPreviewContent(view: ColumnExplorerView, inner: HTMLElemen
 function renderMediaPreview(view: ColumnExplorerView, inner: HTMLElement, file: TFile): boolean {
 	const src = view.app.vault.getResourcePath(file);
 	if (isImageFile(file)) {
-		inner.createEl("img", { cls: "column-explorer-preview-image", attr: { src } });
+		inner.createEl("img", { cls: "column-explorer-preview-image", attr: { src, alt: displayName(file) } });
 		return true;
 	}
 	if (AUDIO_EXTENSIONS.includes(file.extension)) {
@@ -57,22 +63,35 @@ function renderMediaPreview(view: ColumnExplorerView, inner: HTMLElement, file: 
 		return true;
 	}
 	if (file.extension === "pdf" && Platform.isDesktopApp) {
-		inner.createEl("iframe", { cls: "column-explorer-preview-pdf", attr: { src } });
+		inner.createEl("iframe", {
+			cls: "column-explorer-preview-pdf",
+			attr: { src, title: `${t("preview")}: ${displayName(file)}` },
+		});
 		return true;
 	}
 	return false;
 }
 
-async function renderMarkdownSnippet(view: ColumnExplorerView, inner: HTMLElement, file: TFile, owner: Component) {
+async function renderMarkdownSnippet(
+	view: ColumnExplorerView,
+	inner: HTMLElement,
+	file: TFile,
+	owner: Component,
+	isCurrent: () => boolean,
+) {
 	try {
 		const content = await view.app.vault.cachedRead(file);
-		// Колонку могли перерисовать, пока читали — оторванный от DOM контейнер
-		// не наполняем. Модалку Quick Look это не задевает: она открыта
-		if (!inner.isConnected) return;
+		// Колонку или Quick Look могли перерисовать, пока шло чтение.
+		if (!isCurrent()) return;
 		let snippet = content.slice(0, MARKDOWN_PREVIEW_CHARS);
 		if (content.length > MARKDOWN_PREVIEW_CHARS) snippet += "…";
 		if (!snippet.trim()) return;
 		const box = inner.createDiv({ cls: "column-explorer-preview-md markdown-rendered" });
 		await MarkdownRenderer.render(view.app, snippet, box, file.path, owner);
+		if (!isCurrent()) {
+			box.detach();
+			// Renderer мог зарегистрировать детей после первой выгрузки owner.
+			owner.unload();
+		}
 	} catch { /* превью — best effort, ошибок чтения не показываем */ }
 }

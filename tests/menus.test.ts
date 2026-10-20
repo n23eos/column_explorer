@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { TAbstractFile, TFolder } from "obsidian";
+import { FileSystemAdapter, Platform, TAbstractFile, TFile, TFolder } from "obsidian";
 // Menu — из мока: тест читает накопленные пункты, которых нет в публичном API
-import { Menu, createdNotices, resetNotices } from "./__mocks__/obsidian";
+import { Menu, MenuItem, createdNotices, resetNotices } from "./__mocks__/obsidian";
 import {
 	showColumnHeaderMenu, showFileMenu, showFolderBackgroundMenu,
-	showMobileCreateMenu, showMobileMoreMenu, showRecentsMenu, showSortMenu,
+	showColumnSortMenu, showMobileCreateMenu, showMobileMoreMenu, showRecentsMenu, showSortMenu,
 } from "../src/menus";
 import { t } from "../src/i18n";
+import { FolderSuggestModal, QuickLookModal } from "../src/modals";
 import { makeVault } from "./setup/vault";
 import { makeView } from "./setup/view";
 
@@ -15,17 +16,27 @@ import { makeView } from "./setup/view";
  * (у цветов — точка + подпись), поэтому сравниваем по тексту.
  */
 function menuTitles(): string[] {
-	return capturedMenus.flatMap((menu) =>
-		menu.items.map((i) => (typeof i.title === "string" ? i.title : i.title.textContent ?? ""))
-	);
+	const titles = (menu: Menu): string[] => menu.items.flatMap((item) => [
+		typeof item.title === "string" ? item.title : item.title.textContent ?? "",
+		...(item.submenu ? titles(item.submenu) : []),
+	]);
+	return capturedMenus.flatMap(titles);
 }
 
 function clickItem(title: string) {
-	for (const menu of capturedMenus) {
+	const visit = (menu: Menu): boolean => {
 		const item = menu.items.find((i) => (typeof i.title === "string" ? i.title : i.title.textContent) === title);
-		if (item?.callback) { item.callback(); return; }
+		if (item?.callback) { item.callback(); return true; }
+		return menu.items.some((i) => i.submenu ? visit(i.submenu) : false);
+	};
+	for (const menu of capturedMenus) {
+		if (visit(menu)) return;
 	}
 	throw new Error(`no menu item: ${title}`);
+}
+
+function topLevelTitles(menu = capturedMenus[0]): string[] {
+	return menu.items.map((item) => typeof item.title === "string" ? item.title : item.title.textContent ?? "");
 }
 
 let capturedMenus: Menu[] = [];
@@ -82,6 +93,27 @@ describe("showFileMenu on a file", () => {
 		expect(titles).toContain(t("delete"));
 	});
 
+	test("mobile Quick Look receives the visible file order", () => {
+		Platform.isMobile = true;
+		const open = vi.spyOn(QuickLookModal.prototype, "open").mockImplementation(() => { /* no-op */ });
+		try {
+			const { view, vault } = setup(["a.md", "b.md"]);
+			const file = vault.getAbstractFileByPath("a.md") as TFile;
+			const files = [file, vault.getAbstractFileByPath("b.md") as TFile];
+			const quickLookFiles = vi.fn(() => files);
+			Object.assign(view, { quickLookFiles });
+
+			showFileMenu(view, mouse(), file, 0);
+			clickItem(t("preview"));
+
+			expect(quickLookFiles).toHaveBeenCalledWith(file, 0);
+			expect(open).toHaveBeenCalledOnce();
+		} finally {
+			open.mockRestore();
+			Platform.isMobile = false;
+		}
+	});
+
 	test("pin adds the path without mutating the previous settings object", () => {
 		const { view, vault } = setup(["a.md", "b.md"], { pinnedPaths: { "b.md": 0 } });
 		const before = view.plugin.settings.pinnedPaths;
@@ -109,6 +141,64 @@ describe("showFileMenu on a file", () => {
 
 		expect(menuTitles()).toContain(t("copyWikiLink"));
 		expect(menuTitles()).toContain(t("copyMdLink"));
+	});
+
+	test("groups path and link formats under Copy as", () => {
+		const { view, vault } = setup(["a.md"]);
+
+		showFileMenu(view, mouse(), vault.getAbstractFileByPath("a.md") as TAbstractFile, 0);
+
+		const titles = topLevelTitles();
+		expect(titles).toContain(t("copyAs"));
+		expect(titles).not.toContain(t("copyPath"));
+		expect(titles).not.toContain(t("copyWikiLink"));
+		const copyAs = capturedMenus[0].items.find((item) => item.title === t("copyAs"));
+		expect(copyAs?.submenu?.items.map((item) => item.title)).toEqual([
+			t("copyPath"), t("copyWikiLink"), t("copyMdLink"), t("copyObsidianUrl"),
+		]);
+	});
+
+	test("falls back to flat copy formats when submenus are unavailable", () => {
+		const descriptor = Object.getOwnPropertyDescriptor(MenuItem.prototype, "setSubmenu");
+		Reflect.deleteProperty(MenuItem.prototype, "setSubmenu");
+		try {
+			const { view, vault } = setup(["a.md"]);
+
+			showFileMenu(view, mouse(), vault.getAbstractFileByPath("a.md") as TAbstractFile, 0);
+
+			expect(topLevelTitles()).toContain(t("copyPath"));
+			expect(topLevelTitles()).toContain(t("copyWikiLink"));
+		} finally {
+			if (descriptor) Object.defineProperty(MenuItem.prototype, "setSubmenu", descriptor);
+		}
+	});
+
+	test("puts delete in the final block after file-menu extensions", () => {
+		const { view, vault } = setup(["a.md"]);
+		Object.assign(view.app.workspace as object, {
+			trigger: (_name: string, menu: Menu) => menu.addItem((item) => item.setTitle("Extension action")),
+		});
+
+		showFileMenu(view, mouse(), vault.getAbstractFileByPath("a.md") as TAbstractFile, 0);
+
+		const menu = capturedMenus[0];
+		const titles = topLevelTitles(menu);
+		expect(titles[titles.length - 2]).toBe("Extension action");
+		expect(titles[titles.length - 1]).toBe(t("delete"));
+		expect(menu.separatorIndices[menu.separatorIndices.length - 1]).toBe(titles.length - 1);
+	});
+
+	test("passes the moved path to the folder picker", () => {
+		const { view, vault } = setup(["a.md", "folder/b.md"]);
+		const opened: FolderSuggestModal[] = [];
+		const open = vi.spyOn(FolderSuggestModal.prototype, "open")
+			.mockImplementation(function (this: FolderSuggestModal) { opened.push(this); });
+
+		showFileMenu(view, mouse(), vault.getAbstractFileByPath("a.md") as TAbstractFile, 0);
+		clickItem(t("moveTo"));
+
+		expect(opened[0].getItems().map((folder) => folder.path)).toEqual(["folder"]);
+		open.mockRestore();
 	});
 });
 
@@ -151,20 +241,56 @@ describe("showFileMenu with a multi-selection", () => {
 
 		showFileMenu(view, mouse(), vault.getAbstractFileByPath("a.md") as TAbstractFile, 0);
 
-		const titles = menuTitles();
+		const menu = capturedMenus[0];
+		const titles = topLevelTitles(menu);
 		expect(titles).toContain(t("deleteN", { n: 2 }));
 		expect(titles).not.toContain(t("rename"));
+		expect(titles[titles.length - 1]).toBe(t("deleteN", { n: 2 }));
+		expect(menu.separatorIndices[menu.separatorIndices.length - 1]).toBe(titles.length - 1);
 	});
 
 	// «Дублировать N» не должно молча пропускать папки: одиночное меню и
 	// мобильная панель действий их дублируют
 	test("bulk duplicate covers folders as well as files", async () => {
 		const { view, vault } = setup(["docs/note.md", "a.md"]);
-		const copied: string[] = [];
-		const createdFolders: string[] = [];
+		const parentFor = (path: string): TFolder => {
+			const slash = path.lastIndexOf("/");
+			const parent = vault.getAbstractFileByPath(slash === -1 ? "/" : path.slice(0, slash));
+			if (!(parent instanceof TFolder)) throw new Error(`missing parent for ${path}`);
+			return parent;
+		};
+		const addFolder = (path: string): TFolder => {
+			const folder = new TFolder();
+			folder.path = path;
+			folder.name = path.slice(path.lastIndexOf("/") + 1);
+			folder.parent = parentFor(path);
+			folder.parent.children.push(folder);
+			vault.index.set(path, folder);
+			return folder;
+		};
+		const addFile = (source: TFile, path: string): TFile => {
+			const file = new TFile();
+			file.path = path;
+			file.name = path.slice(path.lastIndexOf("/") + 1);
+			const dot = file.name.lastIndexOf(".");
+			file.basename = dot > 0 ? file.name.slice(0, dot) : file.name;
+			file.extension = dot > 0 ? file.name.slice(dot + 1) : "";
+			file.stat = { ...source.stat };
+			file.parent = parentFor(path);
+			file.parent.children.push(file);
+			vault.index.set(path, file);
+			return file;
+		};
 		Object.assign(view.app.vault as unknown as Record<string, unknown>, {
-			copy: (f: TAbstractFile, path: string) => { copied.push(path); return Promise.resolve(); },
-			createFolder: (path: string) => { createdFolders.push(path); return Promise.resolve(); },
+			getAllLoadedFiles: () => [...vault.index.values()],
+			copy: (f: TFile, path: string) => Promise.resolve(addFile(f, path)),
+			createFolder: (path: string) => Promise.resolve(addFolder(path)),
+		});
+		Object.assign(view.app.fileManager as object, {
+			renameFile: (file: TAbstractFile, path: string) => {
+				vault.rename(file.path, path);
+				return Promise.resolve();
+			},
 		});
 		view.multiSelDepth = 0;
 		view.multiSel.add("docs");
@@ -172,9 +298,11 @@ describe("showFileMenu with a multi-selection", () => {
 
 		showFileMenu(view, mouse(), vault.getAbstractFileByPath("a.md") as TAbstractFile, 0);
 		clickItem(t("duplicateN", { n: 2 }));
-		await vi.waitFor(() => expect(copied).toContain("a copy.md"));
+		await vi.waitFor(() => expect(vault.getAbstractFileByPath("a copy.md")).toBeInstanceOf(TFile));
 
-		expect(createdFolders).toEqual(["docs copy"]);
+		expect(vault.getAbstractFileByPath("docs copy/note.md")).toBeInstanceOf(TFile);
+		expect(vault.getAbstractFileByPath("docs/note.md")).toBeInstanceOf(TFile);
+		expect(vault.getAbstractFileByPath("a.md")).toBeInstanceOf(TFile);
 	});
 });
 
@@ -195,6 +323,23 @@ describe("column header menu", () => {
 		clickItem(t("sortDefault"));
 
 		expect(view.plugin.settings.columnSortModes).toEqual({});
+	});
+
+	test("the visible control opens the same sort actions from the keyboard", () => {
+		const { view, vault } = setup(["sub/a.md"]);
+		const anchor = document.body.createEl("button");
+
+		showColumnSortMenu(
+			view,
+			new KeyboardEvent("keydown", { key: "Enter" }),
+			vault.getAbstractFileByPath("sub") as TFolder,
+			anchor,
+		);
+
+		expect(menuTitles()).toContain(t("sortDefault"));
+		expect(menuTitles()).toContain(t("sortNameAsc"));
+		clickItem(t("sortSizeDesc"));
+		expect(view.plugin.settings.columnSortModes).toEqual({ sub: "size-desc" });
 	});
 });
 
@@ -239,12 +384,18 @@ describe("mobile menus", () => {
 	});
 
 	test("sort items fall back into the parent menu when submenus are unavailable", () => {
-		const { view } = setup(["a.md"]);
+		const descriptor = Object.getOwnPropertyDescriptor(MenuItem.prototype, "setSubmenu");
+		Reflect.deleteProperty(MenuItem.prototype, "setSubmenu");
+		try {
+			const { view } = setup(["a.md"]);
 
-		showMobileMoreMenu(view, mouse());
+			showMobileMoreMenu(view, mouse());
 
-		// Без setSubmenu пункты сортировки лежат плоско рядом с остальными
-		expect(menuTitles()).toContain(t("sortNameAsc"));
+			// Без setSubmenu пункты сортировки лежат плоско рядом с остальными
+			expect(topLevelTitles()).toContain(t("sortNameAsc"));
+		} finally {
+			if (descriptor) Object.defineProperty(MenuItem.prototype, "setSubmenu", descriptor);
+		}
 	});
 
 	test("collapse from the more menu calls the view", () => {
@@ -437,6 +588,17 @@ describe("copy items", () => {
 		clickItem(t("copyObsidianUrl"));
 
 		expect(written[0]).toBe("obsidian://open?vault=TestVault&file=sub%2Fa%20b.md");
+	});
+
+	test("copy full path remains available inside Copy as on desktop", () => {
+		const written = stubClipboard();
+		const { view, vault } = setup(["sub/a b.md"]);
+		(view.app.vault as unknown as Record<string, unknown>).adapter = new FileSystemAdapter();
+
+		showFileMenu(view, mouse(), vault.getAbstractFileByPath("sub/a b.md") as TAbstractFile, 0);
+		clickItem(t("copyFullPath"));
+
+		expect(written).toEqual(["/vault/sub/a\\ b.md"]);
 	});
 
 	test("the absolute-path item is absent without a filesystem adapter", () => {

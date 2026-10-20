@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { buildMobileToolbar } from "../src/mobile";
 import {
 	DEFAULT_MOBILE_ICON,
 	DEFAULT_MOBILE_SCALE,
@@ -16,6 +17,8 @@ import {
 	normalizeSettings,
 	parentSelection,
 } from "../src/pure";
+import { makeVault } from "./setup/vault";
+import { makeView } from "./setup/view";
 
 /** Свайп в контейнере шириной 400px по умолчанию. */
 function swipe(over: Partial<Parameters<typeof detectEdgeSwipe>[0]>) {
@@ -208,6 +211,32 @@ describe("mobileControlSize", () => {
 	});
 });
 
+describe("mobile toolbar buttons", () => {
+	test("native-disabled navigation buttons cannot invoke history actions", () => {
+		const view = makeView(makeVault(["a.md"]));
+		let backCalls = 0;
+		let forwardCalls = 0;
+		Object.assign(view, {
+			canGoBack: () => false,
+			canGoForward: () => false,
+			isSearchOpen: () => false,
+			goBack: () => { backCalls++; },
+			goForward: () => { forwardCalls++; },
+		});
+		const toolbar = document.body.createDiv();
+
+		buildMobileToolbar(view, toolbar)();
+		const [back, forward] = Array.from(toolbar.querySelectorAll("button"));
+		back.click();
+		forward.click();
+
+		expect(back.disabled).toBe(true);
+		expect(forward.disabled).toBe(true);
+		expect(backCalls).toBe(0);
+		expect(forwardCalls).toBe(0);
+	});
+});
+
 describe("parentSelection", () => {
 	const isFolder = (p: string) => !p.includes(".");
 
@@ -252,6 +281,8 @@ describe("normalizeSettings", () => {
 		const result = normalizeSettings({
 			columnWidth: 260,
 			columnWidths: { Notes: 300 },
+			autoPanelResize: true,
+			lockColumnWidths: false,
 			recentFilesCount: 25,
 			lockedColumnCount: 2,
 			sortMode: "size-desc",
@@ -271,6 +302,8 @@ describe("normalizeSettings", () => {
 		expect(result).toEqual({
 			columnWidth: 260,
 			columnWidths: { Notes: 300 },
+			autoPanelResize: true,
+			lockColumnWidths: false,
 			recentFilesCount: 25,
 			lockedColumnCount: 2,
 			sortMode: "size-desc",
@@ -405,5 +438,20 @@ describe("errorMessage", () => {
 		expect(errorMessage(404)).toBe("404");
 		expect(errorMessage(null)).toBe("null");
 		expect(errorMessage(undefined)).toBe("undefined");
+	});
+});
+
+describe("width lock settings migration", () => {
+	test("preserves auto-resize for existing installations without changing saved widths", () => {
+		const settings = normalizeSettings({ autoPanelResize: true, columnWidths: { "/": 310 } });
+		expect(settings.autoPanelResize).toBe(true);
+		expect(settings.lockColumnWidths).toBe(false);
+		expect(settings.columnWidths).toEqual({ "/": 310 });
+	});
+	test("retains an explicitly disabled lock and rejects invalid values", () => {
+		expect(normalizeSettings({ autoPanelResize: true, lockColumnWidths: false }).lockColumnWidths).toBe(false);
+		for (const value of [undefined, null, "false", 0, true]) {
+			expect(normalizeSettings({ lockColumnWidths: value }).lockColumnWidths).toBe(true);
+		}
 	});
 });

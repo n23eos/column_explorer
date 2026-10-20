@@ -5,6 +5,7 @@ import {
 	pushRecent, remapPathKeys, remapPathList,
 } from "./pure";
 import { ColumnExplorerSettings, ColumnExplorerSettingTab, DEFAULT_SETTINGS, MAX_RECENT_FILES } from "./settings";
+import { FolderNavigationModal } from "./search";
 import { ColumnExplorerView, VIEW_TYPE_COLUMNS } from "./view";
 
 /** Окно склейки отложенных записей настроек. */
@@ -67,6 +68,7 @@ export default class ColumnExplorerPlugin extends Plugin {
 			}
 			this.markSeen(f.path, f instanceof TFile ? f.stat.mtime : Date.now());
 			this.saveQueued();
+			this.getView()?.updateUnreadMarker(f.path);
 		}));
 
 		this.registerView(VIEW_TYPE_COLUMNS, (leaf) => new ColumnExplorerView(leaf, this));
@@ -98,6 +100,15 @@ export default class ColumnExplorerPlugin extends Plugin {
 			callback: async () => {
 				const view = await this.activateView();
 				view?.focusColumns();
+			},
+		});
+
+		this.addCommand({
+			id: "go-to-folder",
+			name: t("goToFolder"),
+			callback: async () => {
+				const view = await this.activateView();
+				if (view) new FolderNavigationModal(view).open();
 			},
 		});
 
@@ -147,7 +158,9 @@ export default class ColumnExplorerPlugin extends Plugin {
 		// начнут опираться CSS-переменные и запросы к vault
 		this.settings = {
 			...merged,
-			...normalizeSettings(merged as unknown as Record<string, unknown>),
+			// Normalize the persisted object itself so migrations can distinguish a
+			// missing legacy key from a newly supplied default.
+			...normalizeSettings(data ?? {}),
 			...normalizeMobileSettings(merged),
 		};
 		// Сид недавних только при ПЕРВОМ запуске (ключа ещё нет в data.json) —

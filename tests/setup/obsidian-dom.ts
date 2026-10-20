@@ -9,7 +9,7 @@
  * Здесь воспроизведены ровно те методы, что реально используются в src/,
  * с той же семантикой опций (cls / text / attr / prepend).
  *
- * Подключается через `test.setupFiles` в vitest.config.ts.
+ * Подключается через `test.setupFiles` в vitest.config.mts.
  */
 
 /** Подмножество Obsidian DomElementInfo, которое использует плагин. */

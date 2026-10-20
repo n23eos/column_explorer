@@ -59,9 +59,13 @@ export async function countVaultWords(
 	const result = new Map<string, number>();
 	let done = 0;
 	for (const file of files) {
-		const cached = cache.get(file.path);
-		if (cached && cached.mtime === file.stat.mtime) {
-			result.set(file.path, cached.words);
+		// Путь и mtime могут измениться, пока cachedRead ждёт I/O. Кэш должен
+		// описывать именно начатое чтение, тогда следующий проход увидит гонку.
+		const path = file.path;
+		const mtime = file.stat.mtime;
+		const cached = cache.get(path);
+		if (cached && cached.mtime === mtime) {
+			result.set(path, cached.words);
 		} else {
 			let words = 0;
 			// Счётчик — best effort: нечитаемый файл считается пустым,
@@ -69,8 +73,8 @@ export async function countVaultWords(
 			try {
 				words = countWords(await vault.cachedRead(file));
 			} catch { /* ignore */ }
-			cache.set(file.path, { mtime: file.stat.mtime, words });
-			result.set(file.path, words);
+			cache.set(path, { mtime, words });
+			result.set(path, words);
 		}
 		done++;
 		if (onProgress && (done % 50 === 0 || done === files.length)) {

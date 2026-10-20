@@ -320,6 +320,34 @@ describe("countVaultWords", () => {
 		await countVaultWords(vault, new Map(), (done, total) => progress.push([done, total]));
 		expect(progress).toEqual([[1, 1]]);
 	});
+
+	test("keeps the mtime captured before an asynchronous read", async () => {
+		const { fake, vault } = scanVault(["a.md"], { "a.md": "old" });
+		const file = fake.getAbstractFileByPath("a.md") as TFile;
+		const originalMtime = file.stat.mtime;
+		let finishRead: ((content: string) => void) | undefined;
+		let reads = 0;
+		const delayed = {
+			...vault,
+			cachedRead: () => {
+				reads++;
+				if (reads === 1) return new Promise<string>((resolve) => { finishRead = resolve; });
+				return Promise.resolve("new words");
+			},
+		} as unknown as Vault;
+		const cache = new Map<string, WordCacheEntry>();
+
+		const first = countVaultWords(delayed, cache);
+		await Promise.resolve();
+		file.stat = { ...file.stat, mtime: originalMtime + 1 };
+		finishRead?.("old");
+		await first;
+
+		expect(cache.get("a.md")?.mtime).toBe(originalMtime);
+		const second = await countVaultWords(delayed, cache);
+		expect(reads).toBe(2);
+		expect(second.get("a.md")).toBe(2);
+	});
 });
 
 describe("indexTree", () => {

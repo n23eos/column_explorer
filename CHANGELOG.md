@@ -1,5 +1,51 @@
 # Changelog
 
+## [1.16.0] - 2026-10-20
+
+### Safe operations and navigation
+- Add a separate folder-name and path search, available from the explorer and command palette.
+- Add temporary All, New, Modified, and New or modified filters combined with the name filter.
+- Keep unsuccessful cut items available for retry, without repeating successful moves or overwriting a newly changed clipboard.
+- Duplicate files without extensions without adding a trailing dot.
+- Prepare folder copies before publishing the final destination; preserve and report the temporary folder on failure, without automatically deleting concurrent changes.
+
+### Added
+- Collapse intermediate columns with a dedicated toolbar button while keeping the root and current folder visible.
+- Restore the separate desktop column-count lock button and preserve saved column widths.
+- Show the filter scope and matching file count, with a vault-wide file-name and path search.
+- Add a desktop selection toolbar for copying, moving and clearing selected items.
+- Show the effective folder sort order in each header with a directly accessible menu.
+- Browse visible files inside Quick Look with previous/next buttons, arrow keys and a position counter.
+
+### Fixed
+- Clear multi-selection with Escape before clearing the filter; remove stale selections and expose them to assistive technology.
+- Restore focus after changing folder sort order.
+- Discard stale asynchronous previews and handle files removed while Quick Look is open.
+- Report restored, skipped and failed items after undoing a move.
+- Disable unavailable mobile navigation buttons and name image/PDF previews for assistive technology.
+- Keep the mobile search field full width and sorting compact.
+
+### Build
+- Remove production bundle whitespace to retain the existing size limit.
+
+## [1.15.0] - 2026-09-19
+
+### Changed
+- Simplify the desktop toolbar to Create, Sort and More, and group link/path formats under Copy as.
+- Rename the shared favorites/bookmarks entry to Quick access and separate Calendar and Disk usage under Tools.
+- Replace conflicting panel-width controls with one automatic-sizing option, preserving the previous effective setting and saved column widths.
+- Hide dependent settings while their feature is disabled, in both supported settings interfaces.
+
+### Fixed
+- Apply the name filter and keyboard navigation consistently to Recents, Quick access and calendar-day files.
+- Make toolbar, breadcrumb, view-mode and calendar controls keyboard accessible; show a localized Disk usage breadcrumb.
+- Exclude invalid and entirely redundant destinations from Move to folder.
+- Refresh modification-time and size sorting when files change.
+
+### Performance
+- Keep folder columns alive when moving between files; render a bounded chunk around a far selected file instead of all preceding rows.
+- Postpone hidden Disk usage refreshes until the chart is reopened and count words only when the Words metric is requested.
+
 All notable changes to Column Explorer are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
@@ -260,6 +306,11 @@ the same build under a version the scanner can pick up cleanly.
 
 Accepted into the Obsidian community plugin directory.
 
+[1.15.0]: https://github.com/n23eos/column_explorer/releases/tag/1.15.0
+[1.14.0]: https://github.com/n23eos/column_explorer/releases/tag/1.14.0
+[1.13.0]: https://github.com/n23eos/column_explorer/releases/tag/1.13.0
+[1.12.1]: https://github.com/n23eos/column_explorer/releases/tag/1.12.1
+[1.12.0]: https://github.com/n23eos/column_explorer/releases/tag/1.12.0
 [1.11.0]: https://github.com/n23eos/column_explorer/releases/tag/1.11.0
 [1.10.0]: https://github.com/n23eos/column_explorer/releases/tag/1.10.0
 [1.9.0]: https://github.com/n23eos/column_explorer/releases/tag/1.9.0
