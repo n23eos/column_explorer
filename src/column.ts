@@ -25,7 +25,7 @@ export function renderColumn(view: ColumnExplorerView, container: HTMLElement, f
 
 	const header = col.createDiv({ cls: "column-explorer-column-header" });
 	if (Platform.isMobile) addUpButton(view, header);
-	header.createSpan({ cls: "column-explorer-column-title", text: folder.isRoot() ? view.app.vault.getName() : folder.name });
+	header.createSpan({ cls: "column-explorer-column-title", text: folder.isRoot() ? view.app.vault.getName() : folder.name, attr: { title: folder.isRoot() ? view.app.vault.getName() : folder.path } });
 	header.createSpan({ cls: "column-explorer-column-count" });
 	header.addEventListener("contextmenu", (e) => {
 		e.preventDefault();
@@ -60,6 +60,7 @@ export function renderColumn(view: ColumnExplorerView, container: HTMLElement, f
 		cls: "clickable-icon column-explorer-view-toggle",
 		attr: {
 			"aria-label": viewMode === "list" ? t("viewAsGrid") : t("viewAsList"),
+			title: viewMode === "list" ? t("viewAsGrid") : t("viewAsList"),
 			type: "button",
 			"aria-pressed": String(viewMode === "grid"),
 		},
@@ -221,6 +222,7 @@ export function renderColumnList(view: ColumnExplorerView, list: HTMLElement, fo
 function buildItem(view: ColumnExplorerView, f: TAbstractFile, depth: number, isGrid = false): HTMLElement {
 	const item = createDiv({ cls: "column-explorer-item", attr: { role: "option" } });
 	item.dataset.path = f.path;
+	item.setAttribute("title", f.path);
 	// На тач-экране HTML5 drag конфликтует с прокруткой и long-press
 	item.draggable = !Platform.isMobile;
 

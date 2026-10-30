@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const ko: Locale = {
+	breadcrumbs: "폴더 경로",
 	collapseIntermediateColumns: "중간 열 접기",
 	expandIntermediateColumns: "중간 열 펼치기",
 	quickLookPrevious: "이전 파일",
