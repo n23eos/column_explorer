@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.16.2] - 2026-10-30
+
+### Fixed
+- Restore the dedicated desktop crosshair button to reveal the active note and its folder path in one click, clearing filters that could hide it.
+- Add consistent hover hints to desktop toolbar, navigation and view-mode buttons.
+- Show full paths when hovering over files, folders and folder headers, and folder paths on breadcrumbs.
+- Localize the accessible folder-path label in all ten supported languages.
+
 ## [1.16.1] - 2026-10-20
 
 ### Fixed
