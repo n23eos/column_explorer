@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const ru: Locale = {
+	columnLimit: "Максимум колонок папок", columnLimitUnlimited: "Без ограничений",
 	breadcrumbs: "Путь к папке",
 	collapseIntermediateColumns: "Свернуть промежуточные колонки",
 	expandIntermediateColumns: "Развернуть промежуточные колонки",

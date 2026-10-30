@@ -56,7 +56,7 @@ Worth knowing early: `Space` previews the selected file, right-clicking empty sp
 - **Folder colors, icons and pins** — eight theme-aware colors, any lucide icon, pin items to the top
 - **List or icon grid per folder** — the grid shows real image thumbnails
 - **Quick Look & preview column** — `Space` previews the selected file; optional details column with media previews
-- **Resizable everything** — per-column widths, auto-resizing side panel, lockable column count
+- **Resizable everything** - per-column widths, auto-resizing side panel, selectable maximum column count
 - **Full file manager** — multi-select, drag & drop with undo, context menus, per-folder sort, excluded files
 - **Built for phones too** — one column at a time, a compact toolbar, long-press multi-select, edge-swipe navigation and an adjustable interface scale
 
@@ -70,7 +70,7 @@ Worth knowing early: `Space` previews the selected file, right-clicking empty sp
 - **Folder notes** — optionally open the note named like its folder when selecting the folder
 - **Keyboard navigation** — `↑`/`↓` select, `→`/`←` drill in/out, `Home`/`End`/`PageUp`/`PageDown`, type-ahead (start typing to jump, like in Finder), `Enter` open, `Space` Quick Look, `F2` rename, `Delete` trash, `Ctrl`/`Cmd`+`A` select all in the column, `Ctrl`/`Cmd`+`D` duplicate, `Ctrl`/`Cmd`+`C`/`X`/`V` copy, cut and paste
 - **Back & forward** — navigation history buttons in the breadcrumbs bar
-- **Desktop toolbar** - Collapse columns, Reveal active file, Create, Sort, Lock column count and More keep frequent actions within reach
+- **Desktop toolbar** - Collapse columns, Reveal active file, Create, Sort, Maximum folder columns and More keep frequent actions within reach
 - **Favorites** - star any file or folder (context menu, or the star button in the breadcrumbs bar); they sit atop the Quick access column
 - **Filter** - filters names in open columns, including Recents, Quick access and calendar-day files. It is not a vault-wide search; clear it with the cross button or Escape.
 - **Auto-reveal** — optionally follow the active editor tab
@@ -184,7 +184,7 @@ The sidebar keeps its manual width by default. Enable **Automatically fit panel 
 
 ### Compact desktop controls
 
-The desktop toolbar contains **Collapse columns**, **Reveal active file** (the crosshair), **Create**, **Sort**, **Lock column count** and **More**, followed by the filter. Reveal active file selects the note open in the editor and shows its folder path, clearing filters that could hide it. Create offers a note, folder or canvas. More also contains reveal-active-file, collapse-to-root, the column-count limit and automatic panel sizing. Navigation and Favorites remain next to the path. Hover over toolbar buttons for hints, or files, folders and folder headers for their full paths.
+The desktop toolbar contains **Collapse columns**, **Reveal active file** (the crosshair), **Create**, **Sort**, **Maximum folder columns** and **More**, followed by the filter. The column-limit button opens a choice of 1, 2, 3, 4 or Unlimited and remembers the selection. Choosing 1 shows the current folder in a single column filling the panel; clicking a folder opens it in that column. Reveal active file selects the note open in the editor and shows its folder path, clearing filters that could hide it. Create offers a note, folder or canvas. More also contains reveal-active-file, collapse-to-root, the column-count limit and automatic panel sizing. Navigation and Favorites remain next to the path. Hover over toolbar buttons for hints, or files, folders and folder headers for their full paths.
 
 Calendar and Disk usage appear under **Tools** in the root column. Their existing visibility settings are preserved. Dependent options in settings appear only when the corresponding feature is enabled.
 

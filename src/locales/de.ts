@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const de: Locale = {
+	columnLimit: "Maximale Ordnerspalten", columnLimitUnlimited: "Unbegrenzt",
 	breadcrumbs: "Ordnerpfad",
 	collapseIntermediateColumns: "Zwischenspalten einklappen",
 	expandIntermediateColumns: "Zwischenspalten ausklappen",

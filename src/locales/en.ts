@@ -3,6 +3,7 @@
  * so a missing key is a compile error rather than a silent fallback.
  */
 export const en = {
+	columnLimit: "Maximum folder columns", columnLimitUnlimited: "Unlimited",
 	breadcrumbs: "Folder path",
 	collapseIntermediateColumns: "Collapse intermediate columns",
 	expandIntermediateColumns: "Expand intermediate columns",

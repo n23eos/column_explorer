@@ -189,11 +189,11 @@ export class ColumnExplorerView extends ItemView {
 				this.revealFile(this.app.workspace.getActiveFile());
 			});
 			reveal.dataset.action = "reveal-active-file";
-			reveal.setAttribute("title", t("reveal"));
 			this.addToolbarButton(toolbar, "plus", t("create"), (e) => showMobileCreateMenu(this, e));
 			this.addToolbarButton(toolbar, "arrow-up-narrow-wide", t("sort"), (e) => showSortMenu(this, e));
-			const lock = this.addToolbarButton(toolbar, "lock-open", t("lockColumnCount", { n: 1 }), () => this.toggleColumnLock());
-			lock.dataset.action = "lock-columns";
+			const limit = this.addToolbarButton(toolbar, "columns-3", t("columnLimit"), event => this.showColumnLimitMenu(event));
+			limit.dataset.action = "column-limit";
+			limit.setAttribute("aria-haspopup", "menu");
 			const more = this.addToolbarButton(toolbar, "more-horizontal", t("more"), (e) => this.showMoreMenu(e));
 			more.dataset.action = "more";
 		}
@@ -230,7 +230,7 @@ export class ColumnExplorerView extends ItemView {
 		this.filterStatusEl = this.filterInfoEl.createSpan({ attr: { role: "status", "aria-live": "polite" } });
 		this.stateFilterEl = this.filterInfoEl.createEl("select", {
 			cls: "column-explorer-state-filter",
-			attr: { "aria-label": t("filterState"), title: t("filterState") },
+			attr: { "aria-label": t("filterState") },
 		});
 		for (const [value, label] of [
 			["all", t("filterAll")],
@@ -354,7 +354,7 @@ export class ColumnExplorerView extends ItemView {
 	}
 
 	private addToolbarButton(parent: HTMLElement, icon: string, tooltip: string, onClick: (e: MouseEvent) => void): HTMLElement {
-		const btn = parent.createEl("button", { cls: "clickable-icon column-explorer-toolbar-btn", attr: { type: "button", "aria-label": tooltip, title: tooltip } });
+		const btn = parent.createEl("button", { cls: "clickable-icon column-explorer-toolbar-btn", attr: { type: "button", "aria-label": tooltip } });
 		setIcon(btn, icon);
 		this.registerDomEvent(btn, "click", (event) => {
 			if (event.detail === 0) {
@@ -365,11 +365,20 @@ export class ColumnExplorerView extends ItemView {
 		return btn;
 	}
 
-	private toggleColumnLock() {
-		const settings = this.plugin.settings;
-		settings.lockedColumnCount = settings.lockedColumnCount === null ? this.folderColumnCount() : null;
-		void this.plugin.saveSettings();
-		this.render();
+	private showColumnLimitMenu(event: MouseEvent) {
+		const menu = new Menu();
+		for (const count of [1, 2, 3, 4, null]) {
+			menu.addItem(item => item.setTitle(count === null ? t("columnLimitUnlimited") : String(count))
+				.setChecked(this.plugin.settings.lockedColumnCount === count)
+				.onClick(() => {
+					this.plugin.settings.lockedColumnCount = count;
+					this.intermediateColumnsCollapsed = false;
+					void this.plugin.saveSettings();
+					this.persistState();
+					this.render();
+				}));
+		}
+		menu.showAtMouseEvent(event);
 	}
 
 	private updateCollapseButton() {
@@ -381,19 +390,17 @@ export class ColumnExplorerView extends ItemView {
 		button.setAttribute("aria-pressed", String(collapsed));
 		const label = t(collapsed ? "expandIntermediateColumns" : "collapseIntermediateColumns");
 		button.setAttribute("aria-label", label);
-		button.setAttribute("title", label);
 	}
 
 	private updateColumnLockButton() {
-		const button = this.contentEl.querySelector<HTMLElement>('[data-action="lock-columns"]');
+		const button = this.contentEl.querySelector<HTMLElement>('[data-action="column-limit"]');
 		if (!button) return;
-		const locked = this.plugin.settings.lockedColumnCount !== null;
-		setIcon(button, locked ? "lock" : "lock-open");
-		button.toggleClass("is-active", locked);
-		button.setAttribute("aria-pressed", String(locked));
-		const label = locked ? t("unlockColumnCount") : t("lockColumnCount", { n: this.folderColumnCount() });
-		button.setAttribute("aria-label", label);
-		button.setAttribute("title", label);
+		const count = this.plugin.settings.lockedColumnCount;
+		button.empty();
+		setIcon(button, "columns-3");
+		button.createSpan({ text: count === null ? " ∞" : ` ${count}` });
+		button.toggleClass("is-active", count !== null);
+		button.setAttribute("aria-label", t("columnLimit") + ": " + (count === null ? t("columnLimitUnlimited") : String(count)));
 	}
 
 	private showMoreMenu(event: MouseEvent) {
@@ -404,10 +411,8 @@ export class ColumnExplorerView extends ItemView {
 			.onClick(() => this.collapseToRoot()));
 		menu.addSeparator();
 		const settings = this.plugin.settings;
-		menu.addItem(item => item.setTitle(settings.lockedColumnCount === null
-			? t("lockColumnCount", { n: this.folderColumnCount() }) : t("unlockColumnCount"))
-			.setIcon("columns-3").setChecked(settings.lockedColumnCount !== null)
-			.onClick(() => this.toggleColumnLock()));
+		menu.addItem(item => item.setTitle(t("columnLimit"))
+			.setIcon("columns-3").onClick(() => this.showColumnLimitMenu(event)));
 		menu.addItem(item => item.setTitle(t("panelAutoWidth")).setIcon("ruler")
 			.setChecked(settings.autoPanelResize).onClick(() => {
 				setPanelAutoResize(settings, !settings.autoPanelResize);
@@ -513,7 +518,7 @@ export class ColumnExplorerView extends ItemView {
 		bar.hidden = true;
 		this.desktopSelectionCount = bar.createSpan({ attr: { role: "status", "aria-live": "polite" } });
 		const action = (icon: string, label: string, callback: () => void) => {
-			const btn = bar.createEl("button", { cls: "clickable-icon", attr: { type: "button", "aria-label": label, title: label } });
+			const btn = bar.createEl("button", { cls: "clickable-icon", attr: { type: "button", "aria-label": label } });
 			setIcon(btn, icon);
 			this.registerDomEvent(btn, "click", callback);
 		};
@@ -863,18 +868,20 @@ export class ColumnExplorerView extends ItemView {
 		// последняя всегда показывает самую глубокую папку цепочки —
 		// переходы вглубь происходят внутри неё, промежуточные колонки скрыты
 		// На телефоне экран узкий — всегда показываем только самую глубокую колонку
-		const lockedCount = Platform.isMobile ? 1 : this.intermediateColumnsCollapsed ? 2 : this.plugin.settings.lockedColumnCount;
+		const singleColumn = !Platform.isMobile && this.plugin.settings.lockedColumnCount === 1;
+		this.columnsEl.toggleClass("is-single-column", singleColumn);
+		const lockedCount = Platform.isMobile || singleColumn ? 1 : this.intermediateColumnsCollapsed ? 2 : this.plugin.settings.lockedColumnCount;
 		const folderCols = this.folderColumnCount();
-		const hasGap = lockedCount !== null && folderCols > lockedCount;
+		const hasGap = !singleColumn && lockedCount !== null && folderCols > lockedCount;
 		this.columnsEl.toggleClass("is-locked", hasGap);
 
 		// На телефоне спецколонка занимает весь экран — корневую рядом не рисуем
-		if (!(Platform.isMobile && special) && lockedColumnVisible(0, folderCols, lockedCount)) {
+		if (!((Platform.isMobile || singleColumn) && special) && lockedColumnVisible(0, folderCols, lockedCount)) {
 			renderColumn(this, this.columnsEl, this.app.vault.getRoot(), 0);
 		}
 		// Превью-колонки на телефоне нет вовсе: там превью — Quick Look из меню файла
 		const previewOf = (path: string | undefined) => {
-			if (Platform.isMobile) return;
+			if (Platform.isMobile || singleColumn) return;
 			const f = path ? this.app.vault.getAbstractFileByPath(path) : null;
 			if (f instanceof TFile && this.plugin.settings.showPreview) renderPreviewColumn(this, this.columnsEl, f);
 		};
@@ -890,7 +897,7 @@ export class ColumnExplorerView extends ItemView {
 		} else if (special === "calendar") {
 			const daySentinel = this.selection[1];
 			// На телефоне колонка одна: открытый день заменяет сетку месяца
-			if (!Platform.isMobile || !daySentinel) renderCalendarColumn(this, this.columnsEl);
+			if (!(Platform.isMobile || singleColumn) || !daySentinel) renderCalendarColumn(this, this.columnsEl);
 			if (daySentinel) {
 				const day = daySentinel.slice(DAY_PATH_PREFIX.length);
 				const title = new Date(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8)))
@@ -904,7 +911,7 @@ export class ColumnExplorerView extends ItemView {
 				if (f instanceof TFolder) {
 					if (!lockedColumnVisible(depth + 1, folderCols, lockedCount)) continue;
 					renderColumn(this, this.columnsEl, f, depth + 1);
-				} else if (f instanceof TFile && this.plugin.settings.showPreview && !Platform.isMobile) {
+				} else if (f instanceof TFile && this.plugin.settings.showPreview && !Platform.isMobile && !singleColumn) {
 					renderPreviewColumn(this, this.columnsEl, f);
 				}
 			}
@@ -990,7 +997,7 @@ export class ColumnExplorerView extends ItemView {
 		const navBtn = (icon: string, label: string, enabled: boolean, onClick: () => void) => {
 			const btn = nav.createEl("button", {
 				cls: "clickable-icon column-explorer-nav-btn" + (enabled ? "" : " is-disabled"),
-				attr: { type: "button", "aria-label": label, title: label },
+				attr: { type: "button", "aria-label": label },
 			});
 			setIcon(btn, icon);
 			btn.disabled = !enabled;
@@ -1015,7 +1022,7 @@ export class ColumnExplorerView extends ItemView {
 		const isFav = this.isFavorite(current.path);
 		const star = nav.createEl("button", {
 			cls: "clickable-icon column-explorer-fav-btn" + (isFav ? " is-active" : ""),
-			attr: { type: "button", "aria-label": isFav ? t("removeFavorite") : t("addFavorite"), "aria-pressed": String(isFav), title: isFav ? t("removeFavorite") : t("addFavorite") },
+			attr: { type: "button", "aria-label": isFav ? t("removeFavorite") : t("addFavorite"), "aria-pressed": String(isFav) },
 		});
 		setIcon(star, "star");
 		star.addEventListener("click", () => {
@@ -1325,7 +1332,7 @@ export class ColumnExplorerView extends ItemView {
 			this.syncMultiSelDom();
 			this.updateActiveFileHighlight();
 			this.columnsEl.querySelector(".column-explorer-preview")?.remove();
-			if (file instanceof TFile && this.plugin.settings.showPreview && !Platform.isMobile) {
+			if (file instanceof TFile && this.plugin.settings.showPreview && !Platform.isMobile && this.plugin.settings.lockedColumnCount !== 1) {
 				renderPreviewColumn(this, this.columnsEl, file);
 			}
 			this.recordHistory();

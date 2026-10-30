@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const ptBR: Locale = {
+	columnLimit: "Máximo de colunas de pastas", columnLimitUnlimited: "Sem limite",
 	breadcrumbs: "Caminho da pasta",
 	collapseIntermediateColumns: "Recolher colunas intermediárias",
 	expandIntermediateColumns: "Expandir colunas intermediárias",

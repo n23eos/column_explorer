@@ -80,7 +80,7 @@ test("desktop toolbar is compact and every action is a native button", async () 
 	const { view } = await mount();
 	const buttons = Array.from(view.contentEl.querySelectorAll<HTMLElement>(".column-explorer-toolbar > .column-explorer-toolbar-btn"));
 	expect(buttons).toHaveLength(6);
-	expect(buttons.every(el => el.getAttribute("title") === el.getAttribute("aria-label"))).toBe(true);
+	expect(buttons.every(el => !el.hasAttribute("title") && !!el.getAttribute("aria-label"))).toBe(true);
 	expect(buttons.every(el => el.tagName === "BUTTON" && el.tabIndex === 0)).toBe(true);
 	expect(view.contentEl.querySelector(".column-explorer-fav-btn")?.tagName).toBe("BUTTON");
 	expect(view.contentEl.querySelector(".column-explorer-view-toggle")?.tagName).toBe("BUTTON");
@@ -231,4 +231,14 @@ test.each(["folder", "recents", "favorites", "day"])("filter clears an invisible
 	expect(view.selection).toEqual(prefix);
 	expect(view.columnsEl.querySelector(".column-explorer-preview")).toBeNull();
 	expect(view.columnsEl.querySelector('.column-explorer-item.is-selected[data-path="alpha.md"]')).toBeNull();
+});
+
+test("single column does not add a preview during keyboard file selection", async () => {
+	const { view } = await mount(["a.md", "b.md"], { lockedColumnCount: 1, showPreview: true });
+	view.selection = ["a.md"];
+	view.render();
+	press(view, "ArrowDown");
+	expect(view.selection).toEqual(["b.md"]);
+	expect(view.contentEl.querySelectorAll(".column-explorer-column")).toHaveLength(1);
+	expect(view.contentEl.querySelector(".column-explorer-preview")).toBeNull();
 });

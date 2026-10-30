@@ -1310,3 +1310,10 @@ button.column-explorer-cal-cell {
 	background: var(--background-modifier-hover);
 	border: 1px solid var(--background-modifier-border);
 }
+
+/* A single folder column fills the available panel without changing saved widths. */
+.column-explorer-columns.is-single-column > .column-explorer-column {
+	flex: 1 1 0;
+	width: 100%;
+	min-width: 0;
+}

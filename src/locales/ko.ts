@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const ko: Locale = {
+	columnLimit: "최대 폴더 열 수", columnLimitUnlimited: "제한 없음",
 	breadcrumbs: "폴더 경로",
 	collapseIntermediateColumns: "중간 열 접기",
 	expandIntermediateColumns: "중간 열 펼치기",
