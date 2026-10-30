@@ -101,7 +101,7 @@ describe("breadcrumbs", () => {
 
 describe("locked columns", () => {
 	test("marks the columns view as locked once the chain outgrows the limit", async () => {
-		const { view } = await mount(["a/b/c/d.md"], { lockedColumnCount: 1 });
+		const { view } = await mount(["a/b/c/d.md"], { lockedColumnCount: 2 });
 
 		view.selection = ["a", "a/b"];
 		view.render();
@@ -326,7 +326,8 @@ describe("collapse intermediate columns", () => {
 		expect(depths(view)).toEqual(["0", "3"]);
 		expect(view.selection).toEqual(["a", "a/b", "a/b/c", "a/b/c/d.md"]);
 		expect(button.getAttribute("aria-pressed")).toBe("true");
-		expect(button.title).toBe(t("expandIntermediateColumns"));
+		expect(button.getAttribute("aria-label")).toBe(t("expandIntermediateColumns"));
+		expect(button.hasAttribute("title")).toBe(false);
 		expect(plugin.settings.lockedColumnCount).toBeNull();
 		toggle(view);
 		expect(depths(view)).toEqual(["0", "1", "2", "3"]);

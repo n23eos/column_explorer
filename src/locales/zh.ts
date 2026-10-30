@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const zh: Locale = {
+	columnLimit: "文件夹列数上限", columnLimitUnlimited: "不限",
 	breadcrumbs: "文件夹路径",
 	collapseIntermediateColumns: "折叠中间列",
 	expandIntermediateColumns: "展开中间列",

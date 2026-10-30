@@ -47,7 +47,7 @@ export class QuickLookModal extends Modal {
 		const bar = this.contentEl.createDiv({ cls: "column-explorer-quicklook-bar" });
 		this.previousButton = bar.createEl("button", {
 			cls: "clickable-icon column-explorer-quicklook-prev",
-			attr: { "aria-label": t("quickLookPrevious"), title: t("quickLookPrevious") },
+			attr: { "aria-label": t("quickLookPrevious") },
 		});
 		setIcon(this.previousButton, "chevron-left");
 		this.previousButton.addEventListener("click", () => this.navigate(-1));
@@ -57,7 +57,7 @@ export class QuickLookModal extends Modal {
 		});
 		this.nextButton = bar.createEl("button", {
 			cls: "clickable-icon column-explorer-quicklook-next",
-			attr: { "aria-label": t("quickLookNext"), title: t("quickLookNext") },
+			attr: { "aria-label": t("quickLookNext") },
 		});
 		setIcon(this.nextButton, "chevron-right");
 		this.nextButton.addEventListener("click", () => this.navigate(1));

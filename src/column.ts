@@ -45,7 +45,7 @@ export function renderColumn(view: ColumnExplorerView, container: HTMLElement, f
 	const sortDescription = t(folderSortMode === undefined ? "sortInherited" : "sortFolder", { sort: fullSortLabel });
 	const sortButton = header.createEl("button", {
 		cls: "clickable-icon column-explorer-sort-button",
-		attr: { "aria-haspopup": "menu", "aria-label": sortDescription, title: sortDescription, type: "button" },
+		attr: { "aria-haspopup": "menu", "aria-label": sortDescription, type: "button" },
 	});
 	const sortSource = sortButton.createSpan({ cls: "column-explorer-sort-source", attr: { "aria-hidden": "true" } });
 	setIcon(sortSource, folderSortMode === undefined ? "globe" : "folder-cog");
@@ -60,7 +60,6 @@ export function renderColumn(view: ColumnExplorerView, container: HTMLElement, f
 		cls: "clickable-icon column-explorer-view-toggle",
 		attr: {
 			"aria-label": viewMode === "list" ? t("viewAsGrid") : t("viewAsList"),
-			title: viewMode === "list" ? t("viewAsGrid") : t("viewAsList"),
 			type: "button",
 			"aria-pressed": String(viewMode === "grid"),
 		},

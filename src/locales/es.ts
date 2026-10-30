@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const es: Locale = {
+	columnLimit: "Máximo de columnas de carpetas", columnLimitUnlimited: "Sin límite",
 	breadcrumbs: "Ruta de la carpeta",
 	collapseIntermediateColumns: "Contraer columnas intermedias",
 	expandIntermediateColumns: "Expandir columnas intermedias",

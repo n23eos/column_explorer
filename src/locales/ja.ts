@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const ja: Locale = {
+	columnLimit: "フォルダー列の最大数", columnLimitUnlimited: "無制限",
 	breadcrumbs: "フォルダーパス",
 	collapseIntermediateColumns: "中間の列を折りたたむ",
 	expandIntermediateColumns: "中間の列を展開する",

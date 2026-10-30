@@ -98,7 +98,7 @@ describe("column sort button", () => {
 		expect(button?.querySelector(".column-explorer-sort-label")?.textContent).toBe(`${t("modified")} ↓`);
 		expect(button?.getAttribute("aria-label")).toBe(description);
 		expect(button?.getAttribute("aria-haspopup")).toBe("menu");
-		expect(button?.title).toBe(description);
+		expect(button?.hasAttribute("title")).toBe(false);
 		expect(button?.type).toBe("button");
 	});
 

@@ -63,7 +63,8 @@ describe("onOpen", () => {
 		const active = vi.spyOn(app.workspace, "getActiveFile").mockReturnValue(vault.getAbstractFileByPath("other/a.md") as TFile);
 		const button = view.contentEl.querySelector<HTMLButtonElement>('[data-action="reveal-active-file"]')!;
 		expect(button).not.toBeNull();
-		expect(button.getAttribute("title")).toBe(button.getAttribute("aria-label"));
+		expect(button.hasAttribute("title")).toBe(false);
+		expect(button.getAttribute("aria-label")).toBeTruthy();
 		view.selection = ["other", "other/a.md"];
 		view.render();
 		const search = view.contentEl.querySelector<HTMLInputElement>('input[type="search"]')!;
@@ -104,25 +105,59 @@ describe("onOpen", () => {
 		expect(columnPaths(view)).toEqual(["/"]);
 	});
 
-	test("toolbar lock fixes the column count and unlock restores all columns", async () => {
-		const { view, plugin } = await mountView(["notes/sub/deep.md"]);
-		view.selection = ["notes"];
+	test("column limit menu persists each maximum and keeps the current folder visible", async () => {
+		const { view, plugin } = await mountView(["a/b/c/d/note.md"]);
+		const selection = ["a", "a/b", "a/b/c", "a/b/c/d", "a/b/c/d/note.md"];
+		view.selection = [...selection];
 		view.render();
+		const show = vi.spyOn(MockMenu.prototype, "showAtMouseEvent");
 		const save = vi.spyOn(plugin, "saveSettings");
-		const button = view.contentEl.querySelector<HTMLButtonElement>('[data-action="lock-columns"]')!;
-		expect(button.getAttribute("aria-pressed")).toBe("false");
-		button.click();
-		expect(plugin.settings.lockedColumnCount).toBe(2);
-		expect(button.getAttribute("aria-pressed")).toBe("true");
-		expect(button.classList.contains("is-active")).toBe(true);
-		expect(save).toHaveBeenCalled();
-		view.selection = ["notes", "notes/sub"];
+		const button = view.contentEl.querySelector<HTMLButtonElement>('[data-action="column-limit"]')!;
+		const widths = { ...plugin.settings.columnWidths };
+		for (const count of [1, 2, 3, 4, null]) {
+			view.contentEl.querySelector<HTMLButtonElement>('[data-action="collapse-columns"]')!.click();
+			button.click();
+			const menu = show.mock.instances[show.mock.instances.length - 1] as MockMenu;
+			expect(menu.items.map(item => item.title)).toEqual(["1", "2", "3", "4", "Unlimited"]);
+			menu.items[count === null ? 4 : count - 1].callback!();
+			expect(plugin.settings.lockedColumnCount).toBe(count);
+			expect(columnPaths(view)).toHaveLength(count ?? 5);
+			expect(columnPaths(view)[columnPaths(view).length - 1]).toBe("a/b/c/d");
+			expect(view.selection).toEqual(selection);
+			expect(plugin.settings.columnWidths).toEqual(widths);
+			expect(button.getAttribute("aria-label")).toContain(count === null ? "Unlimited" : String(count));
+			expect(button.hasAttribute("title")).toBe(false);
+			view.render();
+			expect(button.textContent).toBe(count === null ? " ∞" : ` ${count}`);
+		}
+		expect(save).toHaveBeenCalledTimes(5);
+		show.mockRestore();
+	});
+
+	test("one full-width column navigates into folders and back without a preview", async () => {
+		const { view, vault, app } = await mountView(["a/b/note.md"], { lockedColumnCount: 1, showPreview: true, showRecents: true });
+		const click = (path: string) => view.contentEl.querySelector<HTMLElement>(`.column-explorer-item[data-path="${path}"]`)!.click();
+		expect(columnPaths(view)).toEqual(["/"]);
+		click("a");
+		expect(columnPaths(view)).toEqual(["a"]);
+		click("a/b");
+		expect(columnPaths(view)).toEqual(["a/b"]);
+		view.revealFile(vault.getAbstractFileByPath("a/b/note.md"));
+		expect(view.contentEl.querySelectorAll(".column-explorer-column")).toHaveLength(1);
+		expect(columnPaths(view)).toEqual(["a/b"]);
+		expect(view.columnsEl.classList.contains("is-single-column")).toBe(true);
+		expect(view.columnsEl.classList.contains("is-locked")).toBe(false);
+		view.goBack();
+		expect(columnPaths(view)).toEqual(["a/b"]);
+		view.goBack();
+		expect(columnPaths(view)).toEqual(["a"]);
+		view.goBack();
+		expect(columnPaths(view)).toEqual(["/"]);
+		view.selection = [RECENTS_PATH];
 		view.render();
-		expect(columnPaths(view)).toHaveLength(2);
-		button.click();
-		expect(plugin.settings.lockedColumnCount).toBeNull();
-		expect(button.getAttribute("aria-pressed")).toBe("false");
-		expect(columnPaths(view)).toEqual(["/", "notes", "notes/sub"]);
+		expect(view.contentEl.querySelectorAll(".column-explorer-column")).toHaveLength(1);
+		expect(view.contentEl.querySelector('[data-folder-path="/"]')).toBeNull();
+		expect(app.opened).toEqual([]);
 	});
 
 	test("renders one column per level of the selection", async () => {

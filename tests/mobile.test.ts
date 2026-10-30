@@ -363,6 +363,7 @@ describe("normalizeSettings", () => {
 
 	test("keeps null as a valid locked column count and floors bogus ones at 1", () => {
 		expect(normalizeSettings({ lockedColumnCount: null }).lockedColumnCount).toBeNull();
+		expect(normalizeSettings({ lockedColumnCount: 1 }).lockedColumnCount).toBe(1);
 		expect(normalizeSettings({ lockedColumnCount: "two" }).lockedColumnCount).toBeNull();
 		expect(normalizeSettings({ lockedColumnCount: 0 }).lockedColumnCount).toBe(1);
 		expect(normalizeSettings({ lockedColumnCount: -3 }).lockedColumnCount).toBe(1);
