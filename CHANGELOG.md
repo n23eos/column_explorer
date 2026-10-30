@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.17.0] - 2026-10-31
+
+### Added
+- Choose a maximum of 1, 2, 3 or 4 folder columns, or Unlimited, from the desktop toolbar. The button shows the saved limit.
+- Browse folders in a single column that fills the panel. Clicking a folder opens it in place; history and breadcrumbs let you go back.
+
+### Fixed
+- Keep previews from adding a second column in single-column mode, including when selecting files with the keyboard.
+- Show special sections in one column when the limit is 1.
+- Remove duplicate system tooltips from controls while retaining Obsidian tooltips and full-path hints.
+
 ## [1.16.2] - 2026-10-30
 
 ### Fixed
