@@ -70,7 +70,7 @@ Worth knowing early: `Space` previews the selected file, right-clicking empty sp
 - **Folder notes** — optionally open the note named like its folder when selecting the folder
 - **Keyboard navigation** — `↑`/`↓` select, `→`/`←` drill in/out, `Home`/`End`/`PageUp`/`PageDown`, type-ahead (start typing to jump, like in Finder), `Enter` open, `Space` Quick Look, `F2` rename, `Delete` trash, `Ctrl`/`Cmd`+`A` select all in the column, `Ctrl`/`Cmd`+`D` duplicate, `Ctrl`/`Cmd`+`C`/`X`/`V` copy, cut and paste
 - **Back & forward** — navigation history buttons in the breadcrumbs bar
-- **Compact desktop toolbar** - Create, Sort and More keep frequent actions visible while panel sizing and column limits stay in the More menu
+- **Desktop toolbar** - Collapse columns, Reveal active file, Create, Sort, Lock column count and More keep frequent actions within reach
 - **Favorites** - star any file or folder (context menu, or the star button in the breadcrumbs bar); they sit atop the Quick access column
 - **Filter** - filters names in open columns, including Recents, Quick access and calendar-day files. It is not a vault-wide search; clear it with the cross button or Escape.
 - **Auto-reveal** — optionally follow the active editor tab
@@ -184,7 +184,7 @@ The sidebar keeps its manual width by default. Enable **Automatically fit panel 
 
 ### Compact desktop controls
 
-The desktop toolbar contains **Create**, **Sort** and **More**, followed by the filter. Create offers a note, folder or canvas. More contains reveal-active-file, collapse-to-root, the column-count limit and automatic panel sizing. Navigation and Favorites remain next to the path.
+The desktop toolbar contains **Collapse columns**, **Reveal active file** (the crosshair), **Create**, **Sort**, **Lock column count** and **More**, followed by the filter. Reveal active file selects the note open in the editor and shows its folder path, clearing filters that could hide it. Create offers a note, folder or canvas. More also contains reveal-active-file, collapse-to-root, the column-count limit and automatic panel sizing. Navigation and Favorites remain next to the path. Hover over toolbar buttons for hints, or files, folders and folder headers for their full paths.
 
 Calendar and Disk usage appear under **Tools** in the root column. Their existing visibility settings are preserved. Dependent options in settings appear only when the corresponding feature is enabled.
 

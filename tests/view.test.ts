@@ -58,6 +58,44 @@ beforeEach(() => {
 });
 
 describe("onOpen", () => {
+	test("reveal toolbar button shows the current note path and clears filters", async () => {
+		const { view, app, vault } = await mountView(["other/a.md", "notes/sub/deep.md"]);
+		const active = vi.spyOn(app.workspace, "getActiveFile").mockReturnValue(vault.getAbstractFileByPath("other/a.md") as TFile);
+		const button = view.contentEl.querySelector<HTMLButtonElement>('[data-action="reveal-active-file"]')!;
+		expect(button).not.toBeNull();
+		expect(button.getAttribute("title")).toBe(button.getAttribute("aria-label"));
+		view.selection = ["other", "other/a.md"];
+		view.render();
+		const search = view.contentEl.querySelector<HTMLInputElement>('input[type="search"]')!;
+		search.value = "missing";
+		search.dispatchEvent(new Event("input"));
+		const filter = view.contentEl.querySelector<HTMLSelectElement>(".column-explorer-state-filter")!;
+		filter.value = "new";
+		filter.dispatchEvent(new Event("change"));
+		view.multiSel.add("other/a.md");
+		active.mockReturnValue(vault.getAbstractFileByPath("notes/sub/deep.md") as TFile);
+
+		button.click();
+
+		expect(view.selection).toEqual(["notes", "notes/sub", "notes/sub/deep.md"]);
+		expect(columnPaths(view)).toEqual(["/", "notes", "notes/sub"]);
+		expect(view.contentEl.querySelector('.column-explorer-item[data-path="notes/sub/deep.md"]')).not.toBeNull();
+		expect(view.contentEl.querySelector(".column-explorer-breadcrumbs")?.textContent).toContain("sub");
+		expect(view.contentEl.querySelector(".column-explorer-crumb.is-current")?.getAttribute("title")).toBe("notes/sub/deep.md");
+		expect(search.value).toBe("");
+		expect(filter.value).toBe("all");
+		expect(view.multiSel.size).toBe(0);
+		expect(app.opened).toEqual([]);
+	});
+
+	test("reveal toolbar button leaves navigation unchanged without an active note", async () => {
+		const { view } = await mountView(["notes/a.md"]);
+		view.selection = ["notes"];
+		view.render();
+		view.contentEl.querySelector<HTMLButtonElement>('[data-action="reveal-active-file"]')!.click();
+		expect(view.selection).toEqual(["notes"]);
+	});
+
 	test("builds toolbar, search input and root column", async () => {
 		const { view } = await mountView(["notes/a.md"]);
 

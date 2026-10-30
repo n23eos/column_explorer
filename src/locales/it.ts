@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const it: Locale = {
+	breadcrumbs: "Percorso della cartella",
 	collapseIntermediateColumns: "Comprimi colonne intermedie",
 	expandIntermediateColumns: "Espandi colonne intermedie",
 	quickLookPrevious: "File precedente",

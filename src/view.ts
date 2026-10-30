@@ -185,6 +185,11 @@ export class ColumnExplorerView extends ItemView {
 			});
 			collapse.dataset.action = "collapse-columns";
 			collapse.addClass("column-explorer-collapse-btn");
+			const reveal = this.addToolbarButton(toolbar, "locate", t("reveal"), () => {
+				this.revealFile(this.app.workspace.getActiveFile());
+			});
+			reveal.dataset.action = "reveal-active-file";
+			reveal.setAttribute("title", t("reveal"));
 			this.addToolbarButton(toolbar, "plus", t("create"), (e) => showMobileCreateMenu(this, e));
 			this.addToolbarButton(toolbar, "arrow-up-narrow-wide", t("sort"), (e) => showSortMenu(this, e));
 			const lock = this.addToolbarButton(toolbar, "lock-open", t("lockColumnCount", { n: 1 }), () => this.toggleColumnLock());
@@ -266,7 +271,7 @@ export class ColumnExplorerView extends ItemView {
 
 		this.breadcrumbsEl = container.createDiv({
 			cls: "column-explorer-breadcrumbs",
-			attr: { role: "navigation", "aria-label": "Breadcrumbs" },
+			attr: { role: "navigation", "aria-label": t("breadcrumbs") },
 		});
 
 		if (!Platform.isMobile) this.buildDesktopSelectionBar(container);
@@ -349,7 +354,7 @@ export class ColumnExplorerView extends ItemView {
 	}
 
 	private addToolbarButton(parent: HTMLElement, icon: string, tooltip: string, onClick: (e: MouseEvent) => void): HTMLElement {
-		const btn = parent.createEl("button", { cls: "clickable-icon column-explorer-toolbar-btn", attr: { type: "button", "aria-label": tooltip } });
+		const btn = parent.createEl("button", { cls: "clickable-icon column-explorer-toolbar-btn", attr: { type: "button", "aria-label": tooltip, title: tooltip } });
 		setIcon(btn, icon);
 		this.registerDomEvent(btn, "click", (event) => {
 			if (event.detail === 0) {
@@ -985,7 +990,7 @@ export class ColumnExplorerView extends ItemView {
 		const navBtn = (icon: string, label: string, enabled: boolean, onClick: () => void) => {
 			const btn = nav.createEl("button", {
 				cls: "clickable-icon column-explorer-nav-btn" + (enabled ? "" : " is-disabled"),
-				attr: { type: "button", "aria-label": label },
+				attr: { type: "button", "aria-label": label, title: label },
 			});
 			setIcon(btn, icon);
 			btn.disabled = !enabled;
@@ -1010,7 +1015,7 @@ export class ColumnExplorerView extends ItemView {
 		const isFav = this.isFavorite(current.path);
 		const star = nav.createEl("button", {
 			cls: "clickable-icon column-explorer-fav-btn" + (isFav ? " is-active" : ""),
-			attr: { type: "button", "aria-label": isFav ? t("removeFavorite") : t("addFavorite"), "aria-pressed": String(isFav) },
+			attr: { type: "button", "aria-label": isFav ? t("removeFavorite") : t("addFavorite"), "aria-pressed": String(isFav), title: isFav ? t("removeFavorite") : t("addFavorite") },
 		});
 		setIcon(star, "star");
 		star.addEventListener("click", () => {
@@ -1019,11 +1024,11 @@ export class ColumnExplorerView extends ItemView {
 			if (restoreFocus) this.breadcrumbsEl.querySelector<HTMLElement>(".column-explorer-fav-btn")?.focus();
 		});
 
-		const addSegment = (label: string, targetDepth: number, isLast: boolean, dropFolder?: TFolder) => {
+		const addSegment = (label: string, targetDepth: number, isLast: boolean, dropFolder?: TFolder, tooltip = dropFolder?.path ?? label) => {
 			const seg = this.breadcrumbsEl.createEl(isLast ? "span" : "button", {
 				cls: "column-explorer-crumb" + (isLast ? " is-current" : ""),
 				text: label,
-				attr: isLast ? { "aria-current": "page" } : { type: "button" },
+				attr: isLast ? { "aria-current": "page", title: tooltip } : { type: "button", title: tooltip },
 			});
 			// Бросить файл на сегмент пути — переместить в эту папку (как в Finder)
 			if (dropFolder) setupCrumbDropTarget(this, seg, dropFolder);
@@ -1049,7 +1054,7 @@ export class ColumnExplorerView extends ItemView {
 				: path === STORAGE_PATH ? t("diskUsage")
 				: path.startsWith(DAY_PATH_PREFIX) ? path.slice(DAY_PATH_PREFIX.length)
 				: path.split("/").pop() ?? path;
-			addSegment(label, i + 1, i === this.selection.length - 1, f instanceof TFolder ? f : undefined);
+			addSegment(label, i + 1, i === this.selection.length - 1, f instanceof TFolder ? f : undefined, f?.path ?? path);
 		});
 
 		// Длинный путь на узком экране: держим в виду текущий, последний сегмент

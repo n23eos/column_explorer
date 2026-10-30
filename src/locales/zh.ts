@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const zh: Locale = {
+	breadcrumbs: "文件夹路径",
 	collapseIntermediateColumns: "折叠中间列",
 	expandIntermediateColumns: "展开中间列",
 	quickLookPrevious: "上一个文件",

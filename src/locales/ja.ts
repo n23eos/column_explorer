@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const ja: Locale = {
+	breadcrumbs: "フォルダーパス",
 	collapseIntermediateColumns: "中間の列を折りたたむ",
 	expandIntermediateColumns: "中間の列を展開する",
 	quickLookPrevious: "前のファイル",

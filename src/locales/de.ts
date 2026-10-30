@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const de: Locale = {
+	breadcrumbs: "Ordnerpfad",
 	collapseIntermediateColumns: "Zwischenspalten einklappen",
 	expandIntermediateColumns: "Zwischenspalten ausklappen",
 	quickLookPrevious: "Vorherige Datei",

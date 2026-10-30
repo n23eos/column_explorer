@@ -1,6 +1,7 @@
 import type { Locale } from "./en";
 
 export const ptBR: Locale = {
+	breadcrumbs: "Caminho da pasta",
 	collapseIntermediateColumns: "Recolher colunas intermediárias",
 	expandIntermediateColumns: "Expandir colunas intermediárias",
 	quickLookPrevious: "Arquivo anterior",
